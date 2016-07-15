@@ -1,0 +1,9 @@
+node_modules
+build/
+upscaledb
+.libs
+include/
+libupscaledb.so
+libupscaledb.so.0
+test.db
+npm-debug.log
