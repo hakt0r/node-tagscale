@@ -68,4 +68,6 @@ NAN_METHOD(upb_tags_del);
 NAN_METHOD(upb_find);
 NAN_METHOD(upb_next);
 
+NAN_METHOD(upb_closeAll);
+
 #endif

@@ -350,6 +350,7 @@ NAN_METHOD(upb_table_del){
   _key.data = (void*)key; _key.size = (uint32_t) strlen(key) + 1;
   FATAL_QUERY_NOERROR(ups_db_erase(t->db, 0, &_key, 0),STATUS,"table_del_key")
   info.GetReturnValue().Set(true); }
+NAN_METHOD(upb_closeAll){ tagscale_close(); }
 
 void tagscale_init(void){
   ups_register_compare("string",string_compare);

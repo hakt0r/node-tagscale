@@ -27,6 +27,8 @@ NAN_MODULE_INIT(InitAll) {
     Nan::GetFunction(Nan::New<FunctionTemplate>(upb_find)).ToLocalChecked());
   Nan::Set(target, Nan::New("next").ToLocalChecked(),
     Nan::GetFunction(Nan::New<FunctionTemplate>(upb_next)).ToLocalChecked());
+  Nan::Set(target, Nan::New("closeAll").ToLocalChecked(),
+    Nan::GetFunction(Nan::New<FunctionTemplate>(upb_closeAll)).ToLocalChecked());
   tagscale_init(); }
 
 NODE_MODULE(NativeExtension, InitAll)
