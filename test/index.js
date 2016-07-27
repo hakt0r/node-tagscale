@@ -229,26 +229,31 @@ describe('ts.Table', function() {
   });
 });
 
-var table1, table2, table3, table4;
+var table1, table2, table3, table4, table5;
 describe('ts.Joint', function() {
   it('Open several TagStores and Tables', function() {
     fs.existsSync('./test.db')  && fs.unlinkSync('./test.db');
     fs.existsSync('./test1.db') && fs.unlinkSync('./test1.db');
     fs.existsSync('./test2.db') && fs.unlinkSync('./test2.db');
     fs.existsSync('./test3.db') && fs.unlinkSync('./test3.db');
+    fs.existsSync('./test4.db') && fs.unlinkSync('./test4.db');
     assert.notStrictEqual(table1 = new ts.Table('test.db'),false);
     assert.notStrictEqual(table2 = new ts.Table('test1.db'),false);
     assert.notStrictEqual(table3 = new ts.Table('test2.db'),false);
     assert.notStrictEqual(table4 = new ts.Table('test3.db'),false);
+    assert.notStrictEqual(table5 = new ts.Table('test4.db'),false);
   });
-  it('Close them all', function() {
+  it('Close some of them', function() {
     assert.notStrictEqual(table1.close(),false);
     assert.notStrictEqual(table2.close(),false);
     assert.notStrictEqual(table3.close(),false);
     assert.notStrictEqual(table4.close(),false);
+  });
+  it('Close them all', function() {
     fs.existsSync('./test.db')  && fs.unlinkSync('./test.db');
     fs.existsSync('./test1.db') && fs.unlinkSync('./test1.db');
     fs.existsSync('./test2.db') && fs.unlinkSync('./test2.db');
     fs.existsSync('./test3.db') && fs.unlinkSync('./test3.db');
+    fs.existsSync('./test4.db') && fs.unlinkSync('./test4.db');
   });
 });

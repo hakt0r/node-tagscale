@@ -111,7 +111,10 @@ NAN_METHOD(upb_tags_open) {
   info.GetReturnValue().Set(Nan::New<Number>(t->id)); }
 
 NAN_METHOD(upb_tags_close) {
-  tagscale_close(); info.GetReturnValue().Set(true); };
+  if ( info.Length() != 1 || !info[0]->IsNumber() ){ info.GetReturnValue().Set(false); return; }
+  RESOLVE_TAGSTORE();
+  free_tagstore(t);
+  info.GetReturnValue().Set(true); }
 
 NAN_METHOD(upb_tags_set) {
   int argc = info.Length();
@@ -350,7 +353,9 @@ NAN_METHOD(upb_table_del){
   _key.data = (void*)key; _key.size = (uint32_t) strlen(key) + 1;
   FATAL_QUERY_NOERROR(ups_db_erase(t->db, 0, &_key, 0),STATUS,"table_del_key")
   info.GetReturnValue().Set(true); }
-NAN_METHOD(upb_closeAll){ tagscale_close(); }
+
+NAN_METHOD(upb_flushAll){ tagscale_flushAll(); }
+NAN_METHOD(upb_closeAll){ tagscale_closeAll(); }
 
 void tagscale_init(void){
   ups_register_compare("string",string_compare);
@@ -358,7 +363,11 @@ void tagscale_init(void){
   for(int i = 0;i<TABLE_MAX;i++)  TABLE[i] = NULL;
   for(int i = 0;i<CURSOR_MAX;i++) CURSOR[i] = NULL; }
 
-void tagscale_close(void){
+void tagscale_flushAll(void){
+  for(int i = 0;i<TAGS_MAX;i++)  ups_env_flush(TAGS[i]->env, 0);
+  for(int i = 0;i<TABLE_MAX;i++) ups_env_flush(TABLE[i]->env,0); }
+
+void tagscale_closeAll(void){
   for(int i = 0;i<CURSOR_MAX;i++) if ( CURSOR[i] != NULL ){ free_cursor(CURSOR[i]); }
   for(int i = 0;i<TABLE_MAX;i++)  if ( TABLE[i] != NULL ){  free_table(TABLE[i]); }
   for(int i = 0;i<TAGS_MAX;i++)   if ( TAGS[i] != NULL ){   free_tagstore(TAGS[i]); }}

@@ -22,40 +22,21 @@
 var fs = require('fs');
 var cp = require('child_process');
 var path = require('path');
+var https = require('https');
 
 var package = JSON.parse(fs.readFileSync('package.json'));
 var release_filename=`node-tagscale.${process.platform}.${process.arch}.${package.version}.tar.bz2`;
 var release_url=`https://anx.ulzq.de/release/${release_filename}`;
 
-cp.spawn( "sh",['-c',`
-export CC='ccache diet cc -fPIC'
-export LD='ccache diet ld -fPIC'
-export CXX='ccache diet g++ -fPIC'
-export CPP='ccache diet cpp'
-export ARFLAGS=cr
-proc="-j$(nproc||echo 2)"
+console.log(`Downloading ${release_url}`);
+var download = function(url, dest, cb) {
+  var file = fs.createWriteStream(dest);
+  var request = https.get(url, function(response) {
+    response.pipe(file);
+    console.log(`Unpacking ${release_filename}`);
+    file.on('finish', function() { file.close(cb); });
+}); }
 
-[ -f ./dest/lib/libupscaledb.a ] && node-gyp configure && exit 0
-
-[ -d ./upscaledb ] ||
-  git clone --depth=1 https://github.com/cruppstahl/upscaledb
-
-cd upscaledb
-  mkdir -p dest
-
-  [ -f ./configure ] || bash ./bootstrap.sh;
-
-  [ -f ./Makefile  ] || ./configure \
-    --enable-static-boost --with-pic=static \
-    --prefix=${path.join(__dirname,'upscaledb','dest')} \
-    --disable-java --disable-encryption --disable-remote
-
-  [ -f ./src/libupscaledb.la ] || {
-    make --trace -C 3rdparty $proc
-    make --trace -C src      $proc; }
-
-  [ -f ./dest/lib/libupscaledb.a  ] || make --trace -C src  install $proc;
-
-cd ..
-node-gyp configure
-`],{stdio:'inherit'})
+download(release_url, release_filename, function(){
+  cp.spawn( "tar",['xjvf',release_filename],{stdio:'inherit'});
+});

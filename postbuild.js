@@ -28,34 +28,13 @@ var release_filename=`node-tagscale.${process.platform}.${process.arch}.${packag
 var release_url=`https://anx.ulzq.de/release/${release_filename}`;
 
 cp.spawn( "sh",['-c',`
-export CC='ccache diet cc -fPIC'
-export LD='ccache diet ld -fPIC'
-export CXX='ccache diet g++ -fPIC'
-export CPP='ccache diet cpp'
-export ARFLAGS=cr
-proc="-j$(nproc||echo 2)"
-
-[ -f ./dest/lib/libupscaledb.a ] && node-gyp configure && exit 0
-
-[ -d ./upscaledb ] ||
-  git clone --depth=1 https://github.com/cruppstahl/upscaledb
-
-cd upscaledb
-  mkdir -p dest
-
-  [ -f ./configure ] || bash ./bootstrap.sh;
-
-  [ -f ./Makefile  ] || ./configure \
-    --enable-static-boost --with-pic=static \
-    --prefix=${path.join(__dirname,'upscaledb','dest')} \
-    --disable-java --disable-encryption --disable-remote
-
-  [ -f ./src/libupscaledb.la ] || {
-    make --trace -C 3rdparty $proc
-    make --trace -C src      $proc; }
-
-  [ -f ./dest/lib/libupscaledb.a  ] || make --trace -C src  install $proc;
-
-cd ..
-node-gyp configure
+[ -f build/Release/NativeExtension.node ] || exit 1
+strip build/Release/NativeExtension.node
+tar jcvf ${release_filename} build/Release/NativeExtension.node
+[ "$USER" = "anx" ] && scp ${release_filename} anx@ulzq.de:www/release/
+[ -n "$KEEP_FILES" ] && exit 0
+rm -rf upscaledb
+rm -rf build
+tar xjvf ${release_filename}
+rm -rf *.tar.bz2
 `],{stdio:'inherit'})

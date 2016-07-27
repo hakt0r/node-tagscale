@@ -51,7 +51,8 @@ static tableHandle    *TABLE[TABLE_MAX];
 static cursorHandle   *CURSOR[CURSOR_MAX];
 
 void tagscale_init(void);
-void tagscale_close(void);
+void tagscale_flushAll(void);
+void tagscale_closeAll(void);
 
 NAN_METHOD(upb_table_open);
 NAN_METHOD(upb_table_close);
@@ -68,6 +69,7 @@ NAN_METHOD(upb_tags_del);
 NAN_METHOD(upb_find);
 NAN_METHOD(upb_next);
 
+NAN_METHOD(upb_flushAll);
 NAN_METHOD(upb_closeAll);
 
 #endif
