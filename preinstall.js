@@ -24,11 +24,14 @@ var cp = require('child_process');
 var path = require('path');
 var https = require('https');
 
+var MODS='', cpuinfo = fs.readFileSync('/proc/cpuinfo').toString();
+if( cpuinfo.match(/sse2/) ){MODS+='-sse2';}
+if( cpuinfo.match(/sse4/) ){MODS+='-sse4';}
+
 var package = JSON.parse(fs.readFileSync('package.json'));
-var release_filename=`node-tagscale.${process.platform}.${process.arch}.${package.version}.tar.bz2`;
+var release_filename=`node-tagscale.${process.platform}.${process.arch}${MODS}.${package.version}.tar.bz2`;
 var release_url=`https://anx.ulzq.de/release/${release_filename}`;
 
-console.log(`Downloading ${release_url}`);
 var download = function(url, dest, cb) {
   var file = fs.createWriteStream(dest);
   var request = https.get(url, function(response) {

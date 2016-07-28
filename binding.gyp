@@ -6,7 +6,7 @@
   "cxxflags_cc": [ "-static", "-fPIC","-rdynamic","-Wl,-whole-archive" ],
   "libraries": [
     "-L <!(dirname $(find /usr/lib -name libz.a | head -n1))",
-    "-lboost_thread", "-lpthread", "-lboost_exception", "-lboost_system", "-lz", "-ldl",
+    "-lboost_thread", "-lpthread", "-lboost_filesystem", "-lz", "-ldl",
     "-L ../upscaledb/3rdparty/streamvbyte/libstreamvbyte.la",
     "-L ../upscaledb/3rdparty/murmurhash3/libmurmurhash3.la",
     "-L ../upscaledb/3rdparty/simdcomp/libsimdcomp.la",
@@ -14,5 +14,5 @@
     "-L ../upscaledb/3rdparty/liblzf/liblzf.la",
     "-L ../upscaledb/3rdparty/for/libfor.la",
     "../upscaledb/dest/lib/libupscaledb.a" ],
-  "include_dirs" : [ 'include', "<!(node -e \"require('nan')\")" ]
+  "include_dirs" : [ 'upscaledb/include', "<!(node -e \"require('nan')\")" ]
 }]}

@@ -52,8 +52,6 @@ To compile the extension for the first time, run:
 
 ```ShellSession
 $ npm i
-$ npm run configure
-$ npm run build
 ```
 
 All subsequent builds *only* need `npm run build`
@@ -62,12 +60,14 @@ All subsequent builds *only* need `npm run build`
 
   - node**JS** 4+
   - node-gyp
-  - c/c++ compiler suite.
+  - c/c++ compiler suite
+  - ccache (optional)
+  - dietlibc (optional)
 
 Compiles upscaledb ad-hoc if no library is found on the system;
   the Author names the following (debian) packages as dependencies.
   - libgoogle-perftools-dev
-  - libboost-system-dev
+  - libboost-filesystem-dev
   - libboost-thread-dev
   - libboost-dev
   - libuv ( >1.0.0 - from debian testing seems to suffice, in my experience )
@@ -76,15 +76,6 @@ Not needed from my side and optional:
   - libdb-dev
   - protobuf-compiler
   - libprotobuf-dev
-
-Be sure to copy (or link) the resulting **libupscale.so** to **/usr/lib**.
-Else the module will *not be able* to find the library.
-
-Another option is to execute your code with the **LD_LIBRARY_PATH** environment-variable set to tagscale's directory:
-```ShellSession
-$ export LD_LIBRARY_PATH=/home/foo/myproject/node_modules/tagscale
-$ node /home/foo/myproject/index.js
-```
 
 ## Testing
 
@@ -149,7 +140,7 @@ $ npm run test
 
 tag**scale**
 
-  Key-value-store with secondary indices (tags) based on upscaledb
+  nodeJS key-value-store with secondary indices (tags) based on upscaledb
 
   Copyright &copy; 2016 Sebastian Glaser
 
