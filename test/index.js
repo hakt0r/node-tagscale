@@ -243,6 +243,12 @@ describe('ts.Joint', function() {
     assert.notStrictEqual(table4 = new ts.Table('test3.db'),false);
     assert.notStrictEqual(table5 = new ts.Table('test4.db'),false);
   });
+  it('Add records and flush them to disk', function() {
+    var sizeBefore = fs.statSync(table5.path).size;
+    assert.strictEqual(table5.set('test123'),true);
+    assert.strictEqual(ts.flushAll(),true);
+    assert.strictEqual(fs.statSync(table5.path).size > sizeBefore, true);
+  });
   it('Close some of them', function() {
     assert.notStrictEqual(table1.close(),false);
     assert.notStrictEqual(table2.close(),false);

@@ -354,8 +354,8 @@ NAN_METHOD(upb_table_del){
   FATAL_QUERY_NOERROR(ups_db_erase(t->db, 0, &_key, 0),STATUS,"table_del_key")
   info.GetReturnValue().Set(true); }
 
-NAN_METHOD(upb_flushAll){ tagscale_flushAll(); }
-NAN_METHOD(upb_closeAll){ tagscale_closeAll(); }
+NAN_METHOD(upb_flushAll){ tagscale_flushAll(); info.GetReturnValue().Set(true); }
+NAN_METHOD(upb_closeAll){ tagscale_closeAll(); info.GetReturnValue().Set(true); }
 
 void tagscale_init(void){
   ups_register_compare("string",string_compare);
@@ -364,8 +364,8 @@ void tagscale_init(void){
   for(int i = 0;i<CURSOR_MAX;i++) CURSOR[i] = NULL; }
 
 void tagscale_flushAll(void){
-  for(int i = 0;i<TAGS_MAX;i++)  ups_env_flush(TAGS[i]->env, 0);
-  for(int i = 0;i<TABLE_MAX;i++) ups_env_flush(TABLE[i]->env,0); }
+  for(int i = 0;i<TAGS_MAX;i++)  if ( TAGS[i] != NULL ) ups_env_flush(TAGS[i]->env, 0);
+  for(int i = 0;i<TABLE_MAX;i++) if ( TABLE[i] != NULL ) ups_env_flush(TABLE[i]->env,0); }
 
 void tagscale_closeAll(void){
   for(int i = 0;i<CURSOR_MAX;i++) if ( CURSOR[i] != NULL ){ free_cursor(CURSOR[i]); }
