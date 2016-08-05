@@ -21,47 +21,8 @@
 
 "use strict";
 
-var ts = require('bindings')('NativeExtension');
+module.exports = exports = require('bindings')('NativeExtension');
 
-class TagStore {
-  constructor(path){
-    this.path = path;
-    if ( false === this.open() ) return false; }
-  open(){ return this.id = ts.tags_open(this.path); }
-  close(){          return ts.tags_close(this.id); }
-  set(key,value){   return ts.tags_set(this.id,key,value); }
-  get(key){         return ts.tags_get(this.id,key); }
-  del(key){         return ts.tags_del(this.id,key); }
-  byTag(key,flags){
-    var c = new Cursor(this,key,flags);
-    return c.id === false ? false : c; }}
-
-class Table {
-  constructor(path){
-    this.path = path;
-    if ( false === this.open() ) return false; }
-  open(){ return this.id = ts.table_open(this.path); }
-  close(){          return ts.table_close(this.id); }
-  set(key,value){   return ts.table_set(this.id,key,value); }
-  get(key){         return ts.table_get(this.id,key); }
-  del(key){         return ts.table_del(this.id,key); }}
-
-class Cursor {
-  constructor(db,key){
-    this.db = db;
-    this.DB = db.id;
-    this.key = key;
-    var res = ts.find( this.DB, this.key, ( rec, uid ) => {
-      this.current = rec; this.id = uid; })
-    if ( res == false ) this.id = res; }
-  first(){ return this.current = ts.next(this.DB, this.id, 1); }
-  last(){  return this.current = ts.next(this.DB, this.id, 2); }
-  next(){  return this.current = ts.next(this.DB, this.id, 4); }
-  prev(){  return this.current = ts.next(this.DB, this.id, 8); }
-  close(){ this.current = null; return ts.next(this.DB, this.id, 0); }}
-
-ts.Table    = Table;
-ts.Cursor   = Cursor;
-ts.TagStore = TagStore;
-
-module.exports = ts;
+exports.DATE = 1
+exports.STRING = 2
+exports.STRING_ARRAY = 3

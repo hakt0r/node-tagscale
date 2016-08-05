@@ -19,6 +19,8 @@
 
 */
 
+if ( process.env.FROM_SOURCE ) return;
+
 var fs = require('fs');
 var cp = require('child_process');
 var path = require('path');

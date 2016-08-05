@@ -2,7 +2,7 @@
   "target_name": "NativeExtension",
   "sources": [ "NativeExtension.cc", "functions.cc" ],
   "arflags": [ "cr" ],
-  "cflags_cc": [ "-static", "-fPIC","-rdynamic","-Wl,-whole-archive" ],
+  "cflags_cc": [ "-O3", "-static", "-fPIC","-rdynamic","-Wl,-whole-archive" ],
   "cxxflags_cc": [ "-static", "-fPIC","-rdynamic","-Wl,-whole-archive" ],
   "libraries": [
     "-L <!(dirname $(find /usr/lib -name libz.a | head -n1))",

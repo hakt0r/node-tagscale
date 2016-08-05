@@ -33,41 +33,100 @@ using namespace std;
 using namespace v8;
 using namespace Nan;
 
-static const int TAGS_MAX   = 64;
-static const int TABLE_MAX  = 64;
-static const int CURSOR_MAX = 128;
+typedef class XScale XScale;
+typedef class XIndex XIndex;
+typedef class XCursor XCursor;
 
-struct tagstoreHandle{
-  int id; char *path; ups_env_t *env; ups_db_t *byKey; ups_db_t *byUID; ups_db_t *byDate; ups_db_t *byTag; };
+static const int TABLE_MAX = 1024;
+static XScale *TABLE[TABLE_MAX];
+inline int ALLOC_TABLE_ID(XScale* table){
+  for (int i = 0; i < TABLE_MAX; i++ ) if ( TABLE[i] == NULL )
+    { TABLE[i] = table; return i; };
+  return -1; }
 
-struct tableHandle{
-  int id; ups_env_t* env; ups_db_t* db; char * path; };
+class Json {
+  public:
+    static void Init();
+    static inline const char*  stringify (Local<Value> value, uint32_t *valLen);
+    static inline Local<Value> parse     (const char* data);
+  private:
+    static Nan::Persistent<Object>   _JSON_;
+    static Nan::Persistent<Function> _STRINGIFY_; };
 
-struct cursorHandle{
-  int id; ups_cursor_t* cur; char * key; int length; };
+class XScale : public Nan::ObjectWrap {
+ public:
+  ups_env_t *env;
+  ups_db_t *byKey;
+  ups_db_t *byUID;
+  int indexCount = 0;
+  static void Init(v8::Local<v8::Object> exports);
+  static Nan::Persistent<v8::Function> constructor;
+  inline void close(void);
+ private:
+  explicit XScale(const char* path);
+  ~XScale();
+  static NAN_METHOD(New);
+  static NAN_METHOD(Close);
+  static NAN_METHOD(Set);
+  static NAN_METHOD(Get);
+  static NAN_METHOD(Del);
+  static NAN_METHOD(DefineIndex);
+  static NAN_METHOD(Find);
+  XIndex *index[TABLE_MAX];
+  char *path = NULL;
+  bool open = false;
+  int id;};
 
-static tagstoreHandle *TAGS[TAGS_MAX];
-static tableHandle    *TABLE[TABLE_MAX];
-static cursorHandle   *CURSOR[CURSOR_MAX];
+class XIndex : public Nan::ObjectWrap {
+ public:
+  static void Init(v8::Local<v8::Object> exports);
+  static Nan::Persistent<v8::Function> constructor;
+  inline void set(uint32_t recordId, Local<Object> Subject);
+  inline void del(uint32_t recordId, Local<Object> Subject);
+  XScale *parent;
+  ups_db_t *primary;
+  ups_db_t *db;
+ private:
+  explicit XIndex(XScale *parent, const char* name, uint32_t flags, Local<Object> This);
+  ~XIndex();
+  inline void close(void);
+  static NAN_METHOD(New);
+  static NAN_METHOD(Close);
+  static NAN_METHOD(Set);
+  static NAN_METHOD(Get);
+  static NAN_METHOD(Del);
+  static NAN_METHOD(Find);
+  uint32_t flags;
+  char *name = NULL;
+  bool open = false; };
+
+class XCursor : public Nan::ObjectWrap {
+ public:
+  static void Init(v8::Local<v8::Object> exports);
+  static Nan::Persistent<v8::Function> constructor;
+  uint32_t flags;
+  ups_db_t *primary;
+  ups_db_t *db;
+  char *key;
+  int length;
+ private:
+  explicit XCursor(ups_db_t *primary, ups_db_t *db, const char* key, uint32_t flags);
+  ~XCursor();
+  inline void close(void);
+  static NAN_METHOD(New);
+  static NAN_METHOD(Close);
+  static NAN_METHOD(Next);
+  static NAN_METHOD(Prev);
+  static NAN_METHOD(First);
+  static NAN_METHOD(Last);
+  static inline void move(const Nan::FunctionCallbackInfo<v8::Value>& info, uint32_t flags);
+  Local<Object> current;
+  ups_cursor_t *cur;
+  bool open = false; };
 
 void tagscale_init(void);
 void tagscale_flushAll(void);
 void tagscale_closeAll(void);
-
-NAN_METHOD(upb_table_open);
-NAN_METHOD(upb_table_close);
-NAN_METHOD(upb_table_set);
-NAN_METHOD(upb_table_get);
-NAN_METHOD(upb_table_del);
-
-NAN_METHOD(upb_tags_open);
-NAN_METHOD(upb_tags_close);
-NAN_METHOD(upb_tags_set);
-NAN_METHOD(upb_tags_get);
-NAN_METHOD(upb_tags_del);
-
-NAN_METHOD(upb_find);
-NAN_METHOD(upb_next);
 
 NAN_METHOD(upb_flushAll);
 NAN_METHOD(upb_closeAll);

@@ -35,7 +35,7 @@ cp.spawn( "sh",['-c',`
 [ -f build/Release/NativeExtension.node ] || exit 1
 strip build/Release/NativeExtension.node
 tar jcvf ${release_filename} build/Release/NativeExtension.node
-[ "$USER" = "anx" ] && scp ${release_filename} anx@ulzq.de:www/release/
+[ "$USER" = "anx" -a -n "$RELEASE" ] && scp ${release_filename} anx@ulzq.de:www/release/
 [ -f KEEP_FILES ] && exit 0
 [ -d node_modules/mocha ] || npm i mocha
 npm t || exit 1

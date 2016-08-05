@@ -26,9 +26,9 @@ var db = null;
 
 var obj1 = {tag:['news','test','hash'],body:'test'};
 var obj2 = {tag:['hash'],body:'test2'};
-var obj3 = {tag:['hash'],body:'test3'};
+var obj3 = {tag:['hash','other'],body:'test3'};
 
-var COUNT = 10000, i = 0, keys, rk, rks, vals;
+var COUNT = 100000, i = 0, keys, rk, rks, vals;
 keys = new Array(COUNT); vals = new Array(COUNT);
 fnv = function(s) {
   var h = 0, i = 0; s = s.toString();
@@ -45,12 +45,12 @@ while (i < COUNT) {
     body: rk() };
   i++; }
 
-var tags = null;
+var tags = null, index = null;
 
-describe('ts.TagStore', function() {
+describe('ts.XScale', function() {
   it('open database', function() {
     fs.existsSync('./test.db') && fs.unlinkSync('./test.db');
-    tags = new ts.TagStore('test.db')
+    tags = new ts.XScale('test.db'); index = tags.defineIndex('tag',ts.STRING_ARRAY);
     assert.notStrictEqual(tags,false);
   });
   it('insert an object', function() {
@@ -60,8 +60,14 @@ describe('ts.TagStore', function() {
     assert.deepEqual(tags.get("test"),obj1)
   });
   it('reopen', function() {
-    assert.equal(tags.close(),true);
-    assert.notStrictEqual(tags.open(),false);
+    assert.equal(index.close(),true); assert.equal(tags.close(),true);
+    tags = new ts.XScale('test.db');  index = tags.defineIndex('tag',ts.STRING_ARRAY);
+    assert.equal(index.close(),true); assert.equal(tags.close(),true);
+    tags = new ts.XScale('test.db');  index = tags.defineIndex('tag',ts.STRING_ARRAY);
+    assert.equal(index.close(),true); assert.equal(tags.close(),true);
+    tags = new ts.XScale('test.db');  index = tags.defineIndex('tag',ts.STRING_ARRAY);
+    assert.equal(index.close(),true); assert.equal(tags.close(),true);
+    tags = new ts.XScale('test.db');  index = tags.defineIndex('tag',ts.STRING_ARRAY);
   });
   it('record persistence', function() {
     assert.deepEqual(tags.get("test"),obj1)
@@ -73,85 +79,101 @@ describe('ts.TagStore', function() {
     assert.equal(tags.get("test"),false);
   });
   it('update an object', function() {
-    assert.equal(tags.set("test",obj1),true)
-    assert.deepEqual(tags.get("test"),obj1)
-    assert.equal(tags.set("test",obj2),true)
-    assert.deepEqual(tags.get("test"),obj2)
-    assert.equal(tags.set("test",obj1),true)
-    assert.deepEqual(tags.get("test"),obj1)
+    assert.equal(typeof tags.set("test",obj1) == 'number',true); assert.deepEqual(tags.get("test"),obj1);
+    assert.equal(typeof tags.set("test",obj2) == 'number',true); assert.deepEqual(tags.get("test"),obj2);
+    assert.equal(typeof tags.set("test",obj1) == 'number',true); assert.deepEqual(tags.get("test"),obj1);
   });
   it('survive a little (write) stress test', function() {
-    var i, j, ref, t = Date.now();
-    for (i = j = 0, ref = COUNT; 0 <= ref ? j < ref : j > ref; i = 0 <= ref ? ++j : --j)
+    this.timeout(5000);
+    var i, t = Date.now(), COUNT = 10;
+    for (i = 0; i < COUNT; i++)
       tags.set(keys[i], vals[i]);
     console.log('      @\x1b[35m'+COUNT+'\x1b[36mrecs\x1b[0m', (diff=Date.now()-t) / COUNT, 'ms/rec', diff, 'ms total');
   });
   it('survive a little (get) stress test', function(done) {
+    this.timeout(5000);
     var i, j, ref, t = Date.now();
-    for (i = j = 0, ref = COUNT = 10000; 0 <= ref ? j < ref : j > ref; i = 0 <= ref ? ++j : --j)
+    for (i = j = 0, ref = COUNT = 10; 0 <= ref ? j < ref : j > ref; i = 0 <= ref ? ++j : --j)
       tags.get(keys[i]);
     console.log('      @\x1b[35m'+COUNT+'\x1b[36mrecs\x1b[0m', (diff=Date.now()-t) / COUNT, 'ms/rec', diff, 'ms total');
     done();
   });
   it('survive a little (del) stress test', function(done) {
+    this.timeout(5000);
     var i, j, ref, t = Date.now();
-    for (i = j = 0, ref = COUNT = 2000; 0 <= ref ? j < ref : j > ref; i = 0 <= ref ? ++j : --j)
+    for (i = j = 0, ref = COUNT = 10; 0 <= ref ? j < ref : j > ref; i = 0 <= ref ? ++j : --j)
       tags.del(keys[i]);
     console.log('      @\x1b[35m'+COUNT+'\x1b[36mrecs\x1b[0m', (diff=Date.now()-t) / COUNT, 'ms/rec', diff, 'ms total');
     done();
   });
   it('close database', function() {
+   assert.equal(index.close(),true);
    assert.equal(tags.close(),true);
   });
 });
 
-var cursor = null;
-describe('ts.TagStore.byTag', function() {
+var cursor = null, a1,a2,a3;
+describe('ts.XScale.byTag', function() {
   it('prepare database', function() {
     fs.existsSync('./test.db') && fs.unlinkSync('./test.db');
-    assert.notStrictEqual(tags.open(),false);
+    tags = new ts.XScale('test.db');
+    index = tags.defineIndex('tag',ts.STRING_ARRAY);
     tags.set('testTags1',obj1);
     tags.set('testTags2',obj2);
     tags.set('testTags3',obj3);
   });
   it('open a cursor', function() {
-    cursor = tags.byTag('hash');
+    cursor = tags.tag.find('hash');
     assert.notStrictEqual(cursor,false);
   });
   it('close that cursor', function() {
     assert.notStrictEqual(cursor.close(),false);
   });
-  it('find tags and walk on them', function() {
-    a = tags.byTag('hash'); a1 = a.current;
+  it('find tags and walk on them (1) - find()', function() {
+    a = tags.tag.find('hash'); a1 = a.current;
     assert.notEqual(a1.tag.indexOf('hash'),-1);
-    a.next(); a2 = a.current;
+  });
+  it('find tags and walk on them (2) - next()', function() {
+    assert.strictEqual(a.next(),true);
+    assert.notEqual(a2 = a.current,undefined);
     assert.notEqual(a2.tag.indexOf('hash'),-1);
-    assert.notDeepEqual(a1,a2);
-    a.next(); a3 = a.current;
+    assert.notDeepEqual(a1.tag,a2.tag);
+    assert.notDeepEqual(a1.body,a2.body);
+  });
+  it('find tags and walk on them (3) - next()', function() {
+    assert.strictEqual(a.next(),true);
+    assert.notEqual(a3 = a.current,undefined);
     assert.notEqual(a3.tag.indexOf('hash'),-1);
-    assert.notDeepEqual(a2,a3);
+    assert.notDeepEqual(a2.tag,a3.tag);
+    assert.notDeepEqual(a2.body,a3.body);
+  });
+  it('find tags and walk on them (4) - end of list', function() {
     a.next();
     assert.deepEqual(a.current,false);
     a.close()
   });
   it('dont find non-existing tags', function() {
-    assert.equal(tags.byTag('foo'),false)
+    assert.equal(tags.tag.find('foo'),false)
   });
   it('should be removed', function() {
     tags.set('testTags4',{tag:['uniqueTag']});
-    c = tags.byTag('uniqueTag'); c.close();
+    assert.notEqual(tags.tag.find('uniqueTag'),false);
     tags.del('testTags4');
-    assert.equal(c = tags.byTag('uniqueTag'),false);
+    assert.equal(tags.get('testTags4'),false);
+    assert.equal(tags.tag.find('uniqueTag'),false);
   });
   it('multiple cursors', function() {
-    a = tags.byTag('hash'); assert.notEqual(a.current.tag.indexOf('hash'),-1)
-    b = tags.byTag('news'); assert.notEqual(b.current.tag.indexOf('news'),-1)
+    a = tags.tag.find('hash'); assert.notEqual(a.current.tag.indexOf('hash'),-1)
+    b = tags.tag.find('news'); assert.notEqual(b.current.tag.indexOf('news'),-1)
     a.close(); b.close()
   });
   it('close database', function() {
     assert.equal(tags.close(),true);
   });
 });
+
+return
+
 
 var table = null;
 describe('ts.Table', function() {
@@ -204,14 +226,14 @@ describe('ts.Table', function() {
     assert.deepEqual(table.get('test1'),obj2);
   });
   it('survive a little (write) stress test', function() {
-    var i, j, ref, t = Date.now(); COUNT = 10000;
+    var i, j, ref, t = Date.now(); COUNT = 10;
     for (i = j = 0, ref = COUNT; 0 <= ref ? j < ref : j > ref; i = 0 <= ref ? ++j : --j)
       table.set(keys[i], vals[i]);
     console.log('      @\x1b[35m'+COUNT+'\x1b[36mrecs\x1b[0m', (diff=Date.now()-t) / COUNT, 'ms/rec', diff, 'ms total');
   });
   it('survive a little (get) stress test', function(done) {
     var i, j, ref, t = Date.now();
-    for (i = j = 0, ref = COUNT = 10000; 0 <= ref ? j < ref : j > ref; i = 0 <= ref ? ++j : --j)
+    for (i = j = 0, ref = COUNT = 10; 0 <= ref ? j < ref : j > ref; i = 0 <= ref ? ++j : --j)
       table.get(keys[i]);
     console.log('      @\x1b[35m'+COUNT+'\x1b[36mrecs\x1b[0m', (diff=Date.now()-t) / COUNT, 'ms/rec', diff, 'ms total');
     done();
@@ -231,7 +253,7 @@ describe('ts.Table', function() {
 
 var table1, table2, table3, table4, table5;
 describe('ts.Joint', function() {
-  it('Open several TagStores and Tables', function() {
+  it('Open several XScales and Tables', function() {
     fs.existsSync('./test.db')  && fs.unlinkSync('./test.db');
     fs.existsSync('./test1.db') && fs.unlinkSync('./test1.db');
     fs.existsSync('./test2.db') && fs.unlinkSync('./test2.db');

@@ -7,3 +7,6 @@ libupscaledb.so
 libupscaledb.so.0
 npm-debug.log
 node-tagscale.*
+functions.h.gch
+KEEP_FILES
+RELEASE

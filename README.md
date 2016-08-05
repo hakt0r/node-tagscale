@@ -1,7 +1,8 @@
 # tagscale
 
 node**JS** extension utilizing [upscale**db**](https://upscaledb.com/) to store JSON-documents including a tag-index.
-Includes a common Key-value-store.
+
+Can be used a common Key-value-store.
 
 This is a synchronous API, no threading - nothing.
 
@@ -11,7 +12,7 @@ And of course - share your patches!!!11elf
 ## Installing
 
 ```ShellSession
-$ npm i git+https://github.com/hakt0r/node-tagscale
+$ npm i --save git+https://github.com/hakt0r/node-tagscale
 ```
 
 ## Using
@@ -20,7 +21,7 @@ $ npm i git+https://github.com/hakt0r/node-tagscale
 var ts = require('tagscale');
 
 // Simple key-value store like leveldb, etc.
-if ( table = new ts.Table('somefile.db') ){
+if ( table = new ts.XScale('somefile.db') ){
   table.set('test1',"Hello World!");
   console.log(table.get('test1')); // "Hello World!"
   table.set('test1',"Hello Universe!");
@@ -30,27 +31,85 @@ if ( table = new ts.Table('somefile.db') ){
   table.close(); }
 
 // Tag-indexed database
-if ( tags = new ts.TagStore('somefile.db') ){
-  tags.set('test1',{{tag:"news","tagscale"},body:'Hello World!'});
-  tags.set('test2',{{tag:"news","hashtags"},body:'Hello Universe!'});
-  tags.set('test3',{{tag:"news","forall!!"},body:'Hello Code!'});
-  console.log(tags.get('test1')); // {{tag:"news","tagscale"},body:'Hello World!'}
-  tags.del('test3');
-  console.log(tags.get('test3')); // false
-  if ( news = tags.byTag('news') ){
+if ( db = new ts.XScale('somefile.db') ){
+  db.defineIndex('tag',ts.STRING_ARRAY);
+  db.set('test1',{{tag:"news","tagscale"},body:'Hello World!'});
+  db.set('test2',{{tag:"news","hashtags"},body:'Hello Universe!'});
+  db.set('test3',{{tag:"news","forall!!"},body:'Hello Code!'});
+  console.log(db.get('test1')); // {{tag:"news","tagscale"},body:'Hello World!'}
+  db.del('test3');
+  console.log(db.get('test3')); // false
+  if ( news = db.tag.find('news') ){
     console.log(news.current); // {{tag:"news","tagscale"},body:'Hello World!'}
     news.next();
     console.log(news.current); // {{tag:"news","hashtags"},body:'Hello Universe!'}
     news.prev();
     console.log(news.current); // {{tag:"news","tagscale"},body:'Hello World!'}
-  tags.close(); }}
+  db.close(); }}
 ```
+## API
+
+#### *class* **XScale**
+  - ***constructor***(path)
+    - *string* **path** - full or relative path to database file
+  - ***close***() - flush and close database and all it's indexes
+  - ***set***(key,value)
+    - *string* **key** - primary key (as in unique)
+    - *object* **value** - the associated object (must be an object)
+    - return (*number* or false);
+  - ***get***(key)
+    - *string* **key** - primary key (as in unique)
+    - return (*object* or false);
+  - ***del***(key)
+    - *string* **key** - primary key (as in unique)
+    - return *boolean*;
+  - ***find***(key)
+    - *string* **key** - primary key (as in unique)
+    - return (*XCursor* or false);
+  - ***defineIndex***(name,type)
+    - *string* **name** - Name of the index and -OFC- the field to be indexed.
+    - *number* **type** - Type of index you desire
+      - 1: ts.**DATE** - Attach a timestamp (automatic)
+      - 2: ts.**STRING** - A String whose value should be indexed
+      - 3: ts.**STRING_ARRAY** - An Array of strings - like tags ;>
+    - return (*XIndex* or false);
+
+#### *class* **XIndex**
+- ***find***(key)
+  - *string* **key** - the key to look up";
+  - return (*XCursor* or false);
+
+#### *class* **XCursor**
+- ***length*** *number* - the number of keys initially matched
+- ***current*** *object* - the current object
+- ***close***()
+  - return *boolean*
+- ***next***()
+  - return *boolean*
+- ***prev***()
+  - return *boolean*
+- ***first***()
+  - return *boolean*
+- ***last***()
+  - return *boolean*
 
 ## Building
 
 To compile the extension for the first time, run:
 
 ```ShellSession
+
+# first get node-tagscale
+$ git clone https://github.com/hakt0r/node-tagscale --depth=1
+$ cd node-tagscale
+
+# Keep upscaledb after building - (saves alot of time ;)
+$ touch KEEP_FILES
+
+# Install from source only
+$ FROM_SOURCE=yes npm i
+
+# Try installing from repo first, then from source
 $ npm i
 ```
 
@@ -61,18 +120,19 @@ All subsequent builds *only* need `npm run build`
   - node**JS** 4+
   - node-gyp
   - c/c++ compiler suite
-  - ccache (optional)
-  - dietlibc (optional)
 
-Compiles upscaledb ad-hoc if no library is found on the system;
+Compiles upscaledb ad-hoc if no library is found on the system or the maintainer repository;
   the Author names the following (debian) packages as dependencies.
+
   - libgoogle-perftools-dev
   - libboost-filesystem-dev
   - libboost-thread-dev
   - libboost-dev
   - libuv ( >1.0.0 - from debian testing seems to suffice, in my experience )
 
-Not needed from my side and optional:
+### Optionals
+  - ccache (optional)
+  - dietlibc (optional)
   - libdb-dev
   - protobuf-compiler
   - libprotobuf-dev
@@ -82,58 +142,16 @@ Not needed from my side and optional:
 A very basic test suite is included. Feel free to have a glance.
 
 ```ShellSession
+
 $ npm run test
 
   building [...]
 
-  ts.TagStore
+  ts.XScale
     ✓ open database
-    ✓ insert an object
-    ✓ return an equal object
-    ✓ reopen
-    ✓ record persistence
-    ✓ remove the object
-    ✓ return nothing for that key now
-    ✓ update an object
-      @10000recs 0.0746 ms/rec 746 ms total
-    ✓ survive a little (write) stress test (749ms)
-      @10000recs 0.0141 ms/rec 141 ms total
-    ✓ survive a little (get) stress test (145ms)
-      @2000recs 0.5935 ms/rec 1187 ms total
-    ✓ survive a little (del) stress test (1188ms)
-    ✓ close database (92ms)
 
-  ts.TagStore.byTag
-    ✓ prepare database
-    ✓ open a cursor
-    ✓ close that cursor
-    ✓ find tags and walk on them
-    ✓ dont find non-existing tags
-    ✓ should be removed
-    ✓ multiple cursors
-    ✓ close database
+  [...]
 
-  ts.Table
-    ✓ open database
-    ✓ close database
-    ✓ re-open database
-    ✓ set value
-    ✓ get value
-    ✓ value type: object
-    ✓ value type: string
-    ✓ value type: number
-    ✓ value type: boolean
-    ✓ delete value
-    ✓ persistence
-      @10000recs 0.0246 ms/rec 246 ms total
-    ✓ survive a little (write) stress test (246ms)
-      @10000recs 0.0125 ms/rec 125 ms total
-    ✓ survive a little (get) stress test (125ms)
-      @10000recs 0.0044 ms/rec 44 ms total
-    ✓ survive a little (del) stress test (44ms)
-    ✓ close database
-
-  31 passing (3s)
 ```
 
 ## License

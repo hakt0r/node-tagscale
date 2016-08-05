@@ -11,7 +11,7 @@
   "gypfile": true,
   "name": "tagscale",
   "description": "nodeJS key-value-store with secondary indices (tags) based on upscaledb",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "directories": { "test": "test" },
   "repository": { "type": "git", "url": "https://github.com/haktor/node-tagscale" },
   "keywords": [ "upscaledb", "key", "value", "db", "secondary", "index" ],
