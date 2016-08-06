@@ -10,3 +10,4 @@ node-tagscale.*
 functions.h.gch
 KEEP_FILES
 RELEASE
+test.db

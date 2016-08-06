@@ -53,11 +53,14 @@ class Json {
     static Nan::Persistent<Object>   _JSON_;
     static Nan::Persistent<Function> _STRINGIFY_; };
 
-class XScale : public Nan::ObjectWrap {
+class XBase : public Nan::ObjectWrap {
+public:
+ ups_db_t *keys;
+ ups_db_t *data; };
+
+class XScale : public XBase {
  public:
   ups_env_t *env;
-  ups_db_t *byKey;
-  ups_db_t *byUID;
   int indexCount = 0;
   static void Init(v8::Local<v8::Object> exports);
   static Nan::Persistent<v8::Function> constructor;
@@ -77,15 +80,13 @@ class XScale : public Nan::ObjectWrap {
   bool open = false;
   int id;};
 
-class XIndex : public Nan::ObjectWrap {
+class XIndex : public XBase {
  public:
   static void Init(v8::Local<v8::Object> exports);
   static Nan::Persistent<v8::Function> constructor;
   inline void set(uint32_t recordId, Local<Object> Subject);
   inline void del(uint32_t recordId, Local<Object> Subject);
   XScale *parent;
-  ups_db_t *primary;
-  ups_db_t *db;
  private:
   explicit XIndex(XScale *parent, const char* name, uint32_t flags, Local<Object> This);
   ~XIndex();
@@ -100,13 +101,11 @@ class XIndex : public Nan::ObjectWrap {
   char *name = NULL;
   bool open = false; };
 
-class XCursor : public Nan::ObjectWrap {
+class XCursor : public XBase {
  public:
   static void Init(v8::Local<v8::Object> exports);
   static Nan::Persistent<v8::Function> constructor;
   uint32_t flags;
-  ups_db_t *primary;
-  ups_db_t *db;
   char *key;
   int length;
  private:

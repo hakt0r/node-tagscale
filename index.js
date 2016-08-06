@@ -26,3 +26,9 @@ module.exports = exports = require('bindings')('NativeExtension');
 exports.DATE = 1
 exports.STRING = 2
 exports.STRING_ARRAY = 3
+
+exports.TagScale = class TagScale extends exports.XScale {
+  constructor(path){
+    super(path);
+    this.defineIndex('tag',3);
+}}

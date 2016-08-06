@@ -47,11 +47,21 @@ while (i < COUNT) {
 
 var tags = null, index = null;
 
+function stress_diff(t,c){ setImmediate( function(){
+  console.log('      @\x1b[35m'+c+'\x1b[36mrecs\x1b[0m', (diff=Date.now()-t) / c, 'ms/rec', diff, 'ms total');
+})}
+
 describe('ts.XScale', function() {
   it('open database', function() {
     fs.existsSync('./test.db') && fs.unlinkSync('./test.db');
     tags = new ts.XScale('test.db'); index = tags.defineIndex('tag',ts.STRING_ARRAY);
     assert.notStrictEqual(tags,false);
+  });
+  it('insert a plain object', function() {
+    assert.equal(tags.set("test",{}),true);
+  });
+  it('return an equal plain object', function() {
+    assert.deepEqual(tags.get("test"),{})
   });
   it('insert an object', function() {
     assert.equal(tags.set("test",obj1),true);
@@ -83,32 +93,30 @@ describe('ts.XScale', function() {
     assert.equal(typeof tags.set("test",obj2) == 'number',true); assert.deepEqual(tags.get("test"),obj2);
     assert.equal(typeof tags.set("test",obj1) == 'number',true); assert.deepEqual(tags.get("test"),obj1);
   });
-  it('survive a little (write) stress test', function() {
-    this.timeout(5000);
-    var i, t = Date.now(), COUNT = 10;
-    for (i = 0; i < COUNT; i++)
-      tags.set(keys[i], vals[i]);
-    console.log('      @\x1b[35m'+COUNT+'\x1b[36mrecs\x1b[0m', (diff=Date.now()-t) / COUNT, 'ms/rec', diff, 'ms total');
+  it('survive a little (write) stress test', function(done) {
+    this.timeout(5000); var i, COUNT = 10, t = Date.now();
+    for (i = 0; i < COUNT; i++) tags.set(keys[i], vals[i]);
+    stress_diff(t,COUNT); done();
   });
   it('survive a little (get) stress test', function(done) {
-    this.timeout(5000);
-    var i, j, ref, t = Date.now();
-    for (i = j = 0, ref = COUNT = 10; 0 <= ref ? j < ref : j > ref; i = 0 <= ref ? ++j : --j)
-      tags.get(keys[i]);
-    console.log('      @\x1b[35m'+COUNT+'\x1b[36mrecs\x1b[0m', (diff=Date.now()-t) / COUNT, 'ms/rec', diff, 'ms total');
-    done();
+    this.timeout(5000); var i, COUNT = 10, t = Date.now();
+    for (i = 0; i < COUNT; i++) tags.get(keys[i]);
+    stress_diff(t,COUNT); done();
   });
   it('survive a little (del) stress test', function(done) {
-    this.timeout(5000);
-    var i, j, ref, t = Date.now();
-    for (i = j = 0, ref = COUNT = 10; 0 <= ref ? j < ref : j > ref; i = 0 <= ref ? ++j : --j)
-      tags.del(keys[i]);
-    console.log('      @\x1b[35m'+COUNT+'\x1b[36mrecs\x1b[0m', (diff=Date.now()-t) / COUNT, 'ms/rec', diff, 'ms total');
-    done();
+    this.timeout(5000); var i, COUNT = 10, t = Date.now();
+    for (i = 0; i < COUNT; i++) tags.del(keys[i]);
+    stress_diff(t,COUNT); done();
+  });
+  it('open a cursor', function() {
+    assert.equal    ( tags.set("test",obj1) > -1, true      ); // Insert an object we want to find.
+    assert.notEqual ( c = tags.find('test'),      false     ); // Moment of truth
+    assert.notEqual ( c.current,                  undefined ); // Should be defined, i mean - we just inseted it ;)
+    assert.equal    ( c.next(),                   false     ); // It's a unique index, no other 'test' should exist
   });
   it('close database', function() {
-   assert.equal(index.close(),true);
-   assert.equal(tags.close(),true);
+   assert.equal     ( index.close(),              true      ); // Not strictly necessary, but it should work
+   assert.equal     ( tags.close(),               true      ); // Close the database and be done with it.
   });
 });
 
