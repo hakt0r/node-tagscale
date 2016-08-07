@@ -55,10 +55,15 @@ class Json {
 
 class XBase : public Nan::ObjectWrap {
 public:
- ups_db_t *keys;
- ups_db_t *data; };
+  uint32_t query_flags;
+  ups_db_t *keys;
+  ups_db_t *data; };
 
-class XScale : public XBase {
+class XTable : public XBase {
+public:
+  static NAN_METHOD(Find); };
+
+class XScale : public XTable {
  public:
   ups_env_t *env;
   int indexCount = 0;
@@ -74,13 +79,12 @@ class XScale : public XBase {
   static NAN_METHOD(Get);
   static NAN_METHOD(Del);
   static NAN_METHOD(DefineIndex);
-  static NAN_METHOD(Find);
   XIndex *index[TABLE_MAX];
   char *path = NULL;
   bool open = false;
   int id;};
 
-class XIndex : public XBase {
+class XIndex : public XTable {
  public:
   static void Init(v8::Local<v8::Object> exports);
   static Nan::Persistent<v8::Function> constructor;
@@ -96,7 +100,6 @@ class XIndex : public XBase {
   static NAN_METHOD(Set);
   static NAN_METHOD(Get);
   static NAN_METHOD(Del);
-  static NAN_METHOD(Find);
   uint32_t flags;
   char *name = NULL;
   bool open = false; };
@@ -105,11 +108,10 @@ class XCursor : public XBase {
  public:
   static void Init(v8::Local<v8::Object> exports);
   static Nan::Persistent<v8::Function> constructor;
-  uint32_t flags;
   char *key;
   int length;
  private:
-  explicit XCursor(ups_db_t *primary, ups_db_t *db, const char* key, uint32_t flags);
+  explicit XCursor(XTable *parent, const char* key, uint32_t extra_flags);
   ~XCursor();
   inline void close(void);
   static NAN_METHOD(New);
@@ -119,6 +121,7 @@ class XCursor : public XBase {
   static NAN_METHOD(First);
   static NAN_METHOD(Last);
   static inline void move(const Nan::FunctionCallbackInfo<v8::Value>& info, uint32_t flags);
+  XTable *parent;
   Local<Object> current;
   ups_cursor_t *cur;
   bool open = false; };
@@ -129,5 +132,16 @@ void tagscale_closeAll(void);
 
 NAN_METHOD(upb_flushAll);
 NAN_METHOD(upb_closeAll);
+
+static inline void debug_flags(uint32_t flags){
+  if ( flags & UPS_CURSOR_FIRST ) printf("UPS_CURSOR_FIRST\n");
+  if ( flags & UPS_CURSOR_LAST ) printf("UPS_CURSOR_LAST\n");
+  if ( flags & UPS_CURSOR_NEXT ) printf("UPS_CURSOR_NEXT\n");
+  if ( flags & UPS_CURSOR_PREVIOUS ) printf("UPS_CURSOR_PREVIOUS\n");
+  if ( flags & UPS_SKIP_DUPLICATES ) printf("UPS_SKIP_DUPLICATES\n");
+  if ( flags & UPS_ONLY_DUPLICATES ) printf("UPS_ONLY_DUPLICATES\n");
+  if ( flags & UPS_FIND_EQ_MATCH ) printf("UPS_FIND_EQ_MATCH\n");
+  if ( flags & UPS_FIND_LT_MATCH ) printf("UPS_FIND_LT_MATCH\n");
+  if ( flags & UPS_FIND_GT_MATCH ) printf("UPS_FIND_GT_MATCH\n"); }
 
 #endif

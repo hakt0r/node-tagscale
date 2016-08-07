@@ -47,24 +47,15 @@ void tagscale_closeAll(void){ for(int i = 0;i<TABLE_MAX;i++) if ( TABLE[i] != NU
 NAN_METHOD(upb_closeAll){ tagscale_closeAll(); info.GetReturnValue().Set(true); }
 
 /*
-                                   ░▒▓▒░    ░▓▓▒
  ░░░        ░▒▓▓▒░   ░▒▓▓▓▒░      ░▓██▓▒    ░███░
- ▒▓▓▒░▒░▒░▓██████▒  ░▓██▓█▓▒     ░▒█████▒░  ░███▓▒░
  ▒▓▓▒░▒░▒░███████▒  ▒███▓█▓▒     ▒▓█████▓▒   ▓███▓▒
- ░▒▒▒░▒░▒░███▓▒▓▒░  ▓██░ ░░░     ▓▓█▒▓▓██▓   ▓▓█▓█▓░   ░░░
           ▓▓▓       ▒▓▓░         ▓▓▓   ▓▓▓   ▓▓▓░▓▓▒   ░▒▒░
-          ▒▓▓░      ░▓▓▒         ▓▓▓   ▓▓▓   ▒▓▓░▒▓▓░  ░▓▓▒
           ░▒▓▒░      ▒▓█▒░       ▓▓▓   ▓▓▓   ░▓▓▒░▓▓▒   ▓▓▓
-           ░▒▓▒░     ░▒▓▓▒░      ▓▓▓   ▒▒▒    ▓▓▓ ▓▓▓   ▓▓▓
        ░░░  ░▒▓▒░     ▒▓█▓▓▒░    ▓▓▓  ░▒▒░    ▓▓▓ ▓▓▓   ▓▓▓
       ░▓▓▒   ░▒▓▒░    ▒▒▓▒██▓░   ▓▓▓  ▒▒▒     ▓▓▓ ▓▓▓   ▓▓▓
-      ░███▒░  ░▓▓▒    ▓▓▓░▓██▒   ▓██░ ▓▓▓     ▓▓▓ ▓▓▓   ▓▓▓
       ░▓██▓▓▓▓▓██▓    ▓▓▓░▓██▒   ▒███▓█▓▒     ▓▓▓ ▓▓▓  ░▓▓▒
-       ░▒▓▓▓▓▓▓█▓▒    ▒▓█▓▓▓▒░   ░▓██▓▓▒░     ▒▒▒ ▓██░ ▒▓▓░
           ░▒▓▓▓▓▒░    ░▓███▒░     ░▒▓▓▒░      ░░░ ▒██▒░▓▓▒
                        ▒██▒                       ░███▓▓▒░
-                       ░▒▒░                        ▒▓█▓▒░
-                                                   ░▒▓▒░
 */
 
 void Json::Init(){
@@ -93,26 +84,35 @@ Nan::Persistent<Object>   Json::_JSON_;
 Nan::Persistent<Function> Json::_STRINGIFY_;
 
 /*
+ ░██▓░         ░▓▓░    ░█████▓▒   ░▓████████▒  ▓██░     ░█████████████▒
+   ▒███░    ░▓██▒▒████████░ ░███░ ░▓█▒ ██░ ▒██  ░██▒      ▓██      ░▓█▒
+     ░███░▒███▒▓███▒▒█▒    ░██ ▓██░    ███████░   ██      ░██████▓░
+      ░█████▓░      ▒█▒   ░██▓ ░██▒    ████████░  ██       ███
+      ▒██████░      ░██░░▒██████████   ██▒ ░▒▓██▒░██      ░██▓▓▓▒▒▒▒░
+    ░██▒    ▒███▒  ░███▓███▓░     ▓██▓▓█████▓▒▒▒▓████████████████████▒
+   ▒██▒       ▒██░ ▒██████▒        ▓███▓▒░     ░▓██░    ▒▓▒▒░    ░▓██▓
+*/
 
+NAN_METHOD(XTable::Find){
+  if ( info.Length() != 1 ){ info.GetReturnValue().Set(false); return; }
+  const int argc = 2; Isolate* isolate = info.GetIsolate();
+  Local<Value> argv[argc] = { info.Holder(), info[0] };
+  Local<Function> cons = Local<Function>::New(isolate, XCursor::constructor);
+  Local<Context> context = isolate->GetCurrentContext();
+  Local<Object> instance = cons->NewInstance(context, argc, argv).ToLocalChecked();
+  if ( !instance->Has(Nan::New("current").ToLocalChecked()) ){ info.GetReturnValue().Set(false); return; }
+  info.GetReturnValue().Set(instance); }
 
-
-  ░░░                                                  ░░░
-  ▒▓▓░    ░░░                                          ▒▒▒
-  ▒▓█▒░ ░▒▓▒░       ░▒▓▓▒░                             ▓▓▓
-  ░▒▓▒▒░▓▓█▒░       ▒▓█▓▒░                             ▓▓▓
-    ░░▓▓██▓░        ▓███▒░                             ▓▓▓
-     ░███▓▒         ▒▓█▓▒░                             ▒▒▒
-     ▒███▒▒░░       ░▒▓▓▒▒▒▒░                ░▒▓▓▒░    ▒▒▒   ░▒▓▓▓▓▓▒░
-    ░▓█▓▒░▒░▒░░       ░▒▒▒▒▓▓▒░   ░▒▓▒░     ░▓██▓▓▒░   ░░░   ▒▓██████▒
-    ░▒▒░  ░░▒▒▒░         ░▒▓▓▓▓▒░ ▒▓█▒░     ▒███▓██▓░  ▒▒▒   ████████▒
-    ░░░     ░▒▓▒░     ░░░  ░▒▓██▓░▓██▒░     ▓██░ ███░  ▒▒▒   █████▓▓▒░
-             ░▒▓▓▒░   ▒▓█▒▒▒▓████▒▓██▓▓▓▓▓▒░▓██▓▓███▒  ▒▒▒   ▓████▒▒▒▒▒▒▓▓▓▓
-              ░▒▓▓▒░  ▒▓█▒▒▒▓▓███▒▒▓█▓▓▓▓▓▒░▒▓█▓▓███▒  ░▒▒░  ░▒███▒▒▒▒▒▒▓▓▓▓
-               ░▒▓▓▓▒░░▒▓▒▒▒▓▓▓▓▒░░▒▓▓▓▓▓▓▒░░▒▓▓▓████▒░ ▒▒▒    ░▒▓▒▒▒▒▒▒▓▓▓▓
-                 ░▒▓▒░                            ░▒███▒▓▓▓░
-                  ░▒▒░                             ░▓██▒▒▒▒░
-                                                    ░▒▓▒░░░░
-
+/*
+░▓▓░      ███░  ░▓██▒    ░▓███▓░    ▒█▓░     ▓█▒        ▒███████▓░
+ ░██░    ░██▓  ░████▒   ░█████▓░   ░████▒░   ██▒       ░▓██▒░
+  ▓██░  ░███   ▒██░    ░██▓░       ▓█▓▒██▒   ▓█▒       ▒▓▓▒
+  ░███░░███▒   ░██▓░   ▓█▓         ██░ ░██░  ▒█▒       ▒▓███▓▒░
+   ░██████▒     ▒███▓▒░██░        ▒██   ▓█▓  ▓█▒       ░▓███▓▒░
+    ░███▓        ░▓███▓▓█░       ▒█████████▒ ██░        ▒██▒
+    ░▓███▓░   ░░    ░██▒█▓▒░    ░███████▓▓██░██▒▒░      ░████▒   ░░
+    ▓█▓▓████▒ ▒███████▓░▓█████▓▓███▓      ██░███████▓▒▒░ ▒████████▓
+  ░▓██░  ▒███░░▓█████▓░ ░▒▓███▓▓▓▒▒░      ░░ ▒▓▒▓███▓▒▒░  ░▒██████▒
 */
 
 void XScale::Init(v8::Local<v8::Object> exports) {
@@ -137,6 +137,7 @@ XScale::XScale(const char* path){
   ups_parameter_t key_params[] = {
     {UPS_PARAM_KEY_TYPE, UPS_TYPE_CUSTOM}, {UPS_PARAM_RECORD_SIZE, sizeof(uint32_t)},
     {UPS_PARAM_CUSTOM_COMPARE_NAME, (uint64_t)"string"}, {0,0}};
+  this->query_flags = UPS_FIND_NEAR_MATCH | UPS_SKIP_DUPLICATES;
   this->id = ALLOC_TABLE_ID(this);
   if( UPS_SUCCESS != ups_env_open      (&this->env, path, 0, NULL ))
   if( UPS_SUCCESS != ups_env_create    (&this->env, path, 0, 0664, 0 )) return;
@@ -238,16 +239,6 @@ NAN_METHOD(XScale::Del) {
   if ( UPS_SUCCESS !=  ups_db_erase(that->data, 0, &_key, 0 )){ info.GetReturnValue().Set(false); return; }
   info.GetReturnValue().Set(true); }
 
-NAN_METHOD(XScale::Find){
-  if ( info.Length() != 1 ){ info.GetReturnValue().Set(false); return; }
-  const int argc = 2; Isolate* isolate = info.GetIsolate();
-  Local<Value> argv[argc] = { info.Holder(), info[0] };
-  Local<Function> cons = Local<Function>::New(isolate, XCursor::constructor);
-  Local<Context> context = isolate->GetCurrentContext();
-  Local<Object> instance = cons->NewInstance(context, argc, argv).ToLocalChecked();
-  if ( !instance->Has(Nan::New("current").ToLocalChecked()) ){ info.GetReturnValue().Set(false); return; }
-  info.GetReturnValue().Set(instance); }
-
 NAN_METHOD(XScale::DefineIndex) {
   if ( info.Length() != 2 || !info[0]->IsString() ){ info.GetReturnValue().Set(false); return; }
   Isolate* isolate = info.GetIsolate();
@@ -262,23 +253,15 @@ NAN_METHOD(XScale::DefineIndex) {
   info.GetReturnValue().Set(instance); }
 
 /*
-     ░░░
-     ░▒▒░          ░▒▒░
      ░▒▓▒░       ░▒▓▓▒░            ░░░  ░▒▓▓▓▓▒░        ░▒▓▓▓▓▓▒░ ░░░   ░░░
       ░▒▓▓▒░     ▒▓█▓▒░    ░░░     ▒▒▒  ░▒██████▒░     ░▓██▓▓▓▓▒░ ░▒▒░ ░▓▓▒
-       ░▒▓▓▒░  ░░▓▓▓░ ░░░  ▓██▒    ▓▓▓  ░▒██████▓▒░    ▒███▓▓▓▓▒░ ░▒▓▒░▒██▒
         ░▒▓▓▒░░▒▒▒░░  ▒▒▒  ▓███░   ▓▓▓    ▓▓▓░▒▓▓▓▒░   ▓██░       ░▒▓▒░▓██░
           ░▒▓▓▓▓▒░    ▓▓▓  ▒███▒░  ▓▓▓    ▓▓▓   ░▒▓▒░  ███▓▒▒░▒░▒▒▓▒▒▒▓█▓▒
            ░▒███░     ▓▓▓   ▓██▓▒░ ▓▓▓    ▓▓▓    ░▓▓▒  ███▓▒▒░▒░▒▒▓▒░░▓██▒
-           ░▒███░     ▓▓▓   ▓▓█▒▓▒░▓▓▓    ▓▓▓     ▒▓▓░ ███▓▒▒░▒░▒▒▒░ ░███░
           ░▒▒▓▓█▒░    ▓▓▓   ▓▓▓░▓█▓█▓▓    ▓▓▓     ░▒▓▒░▓▓▓           ░▓█▓▒░░
          ░▒▓▒░░▓█▓░   ▒▒▒   ▒▒▒ ▒████▓    ▓▓▓░░░   ░▓▓▒▓██▓▓▓▒░      ▒▓▓░░░░
          ▒██▒  ▒██▒   ░░░   ░░░ ░▓██▓▒    ▒▒▒▒▓█▒░░▒██▓▒▓█▓▓▓▒░      ▓▓▓ ░▒▒░
-         ▒▓▓░  ░▓█▓░             ░▒▓▒░    ░░░▒▓███▓▓█▓▒░▒▓▓▓▓▒░      ▓▓▓  ░▒▒░
          ░▒▒░   ░▓█▓░                        ░▒███▓▓▓▒░             ░██▓  ░▓▓▒
-                 ▒▓▓░                          ░▒▓▒░                ░▓▓▒   ▒▓▓░
-                 ░▒▒░                                               ░▒▒░   ░▒▒░
-                                                                            ░░░
 */
 
 void XIndex::Init(v8::Local<v8::Object> exports) {
@@ -293,6 +276,7 @@ void XIndex::Init(v8::Local<v8::Object> exports) {
 Nan::Persistent<Function> XIndex::constructor;
 
 XIndex::XIndex(XScale *parent, const char *name, uint32_t flags, Local<Object> This){
+  this->query_flags = UPS_ONLY_DUPLICATES;
   int id = parent->indexCount;
   this->name    = (char*) name;
   this->flags   = flags;
@@ -359,12 +343,12 @@ inline void XIndex::set(uint32_t recordId, Local<Object> Subject){
 static inline bool cursor_remove_string(ups_cursor_t *cursor, uint32_t recordId, const char *key){
   uint32_t foundId; uint32_t duplicateKeys = 0; ups_key_t _key = {0,0,0,0}; ups_record_t _val = {0,0,0};
   _key.data = (void*)key;  _key.size = (uint32_t) strlen(key) + 1;
-  if ( UPS_SUCCESS != ups_cursor_find(cursor, &_key, &_val, 0)                  ) goto clear;
-  if ( UPS_SUCCESS != ups_cursor_get_duplicate_count(cursor, &duplicateKeys, 0) ) goto clear;
+  if ( UPS_SUCCESS != ups_cursor_find(cursor, &_key, &_val, 0)                  ) return false;
+  if ( UPS_SUCCESS != ups_cursor_get_duplicate_count(cursor, &duplicateKeys, 0) ) return false;
   for(uint32_t i=0;i<duplicateKeys;i++){
     if ( ( foundId = *(uint32_t *) _val.data ) == recordId ){ ups_cursor_erase (cursor,0); break; }
     if ( UPS_SUCCESS != ups_cursor_move (cursor, &_key, &_val, UPS_CURSOR_NEXT + UPS_ONLY_DUPLICATES) ){ break; }}
-  clear: ups_cursor_close(cursor); return true; }
+  return true; }
 
 inline void XIndex::del(uint32_t recordId, Local<Object> Subject){
   Local<String> IndexKey = String::NewFromUtf8(Isolate::GetCurrent(),this->name);
@@ -373,46 +357,31 @@ inline void XIndex::del(uint32_t recordId, Local<Object> Subject){
   const char* value;
   if ( this->flags == 1 ){}
   if ( this->flags == 2 ){
-    Local<String> Value = Local<String>::Cast(Subject->Get(IndexKey)); value = COPY_TO_CHAR(Value);
-    cursor_remove_string(cursor,recordId,value); free((void*)value); }
+    value = COPY_TO_CHAR(Subject->Get(IndexKey));
+    cursor_remove_string(cursor,recordId,value);
+    free((void*)value); }
   if ( this->flags == 3 ){
-    Local<Array> List = Local<Array>::Cast(Subject->Get(IndexKey));
-    if ( Subject->IsArray() ){
-      int length = List->Length();
-      if ( length > 0 ) for( int i = 0; i < length; i++){
-        Local<String> Value = Local<String>::Cast(Subject->Get(i)); value = COPY_TO_CHAR(Value);
-        cursor_remove_string(cursor,recordId,value);
-        free((void*)value);}}}
+    Local<Value> Member = Subject->Get(IndexKey);
+    if ( Member->IsArray() ){
+      Local<Array> List = Local<Array>::Cast(Member);
+        int length = List->Length();
+        if ( length > 0 ) for( int i = 0; i < length; i++){
+          value = COPY_TO_CHAR(List->Get(i));
+          cursor_remove_string(cursor,recordId,value);
+          free((void*)value);}}}
   ups_cursor_close(cursor); }
 
-NAN_METHOD(XIndex::Find){
-  if ( info.Length() != 1 ){ info.GetReturnValue().Set(false); return; }
-  const int argc = 2; Isolate* isolate = info.GetIsolate();
-  Local<Value> argv[argc] = { info.Holder(), info[0] };
-  Local<Function> cons = Local<Function>::New(isolate, XCursor::constructor);
-  Local<Context> context = isolate->GetCurrentContext();
-  Local<Object> instance = cons->NewInstance(context, argc, argv).ToLocalChecked();
-  if ( !instance->Has(Nan::New("current").ToLocalChecked()) ){ info.GetReturnValue().Set(false); return; }
-  info.GetReturnValue().Set(instance); }
-
 /*
-     ░░░
-     ▒▒▒         ░▒▓▒░
-     ▒▓▓░      ░▒▓▓▓▒░      ░▒▓▓▒░
-     ░▒▓▓▒░   ░▒▓▓▓▓▒░    ░▒▓▓▓▓▒░
-      ░▒▓▓▒░░░▒▒▓▒░       ▒▓█▓▓▓▒░
-       ░▒▓▒▒▓▓▓░░       ░▒██▓░
-         ░░▓██▓        ░▒▓▓▒░                    ░▒▒░ ░▒▓▓▓▓▒░  ░▒▓▓▓▒░  ░▒▒░░▒█▒░
-          ░▓██▓░░      ▒▓█▒░    ░░░         ░░▒▒▓██▓░ ▒▓█▓▓▓▒░░▒▓▓▓▓▓▒░  ▒▓█▓███▒░
-          ▒▓█▒▒▒▓▒░    ▓▓▓      ▒▒▒    ░░░  ▒▓█████▓░ ▓██▓▓▓▒▒▓██▓▓▓▓▒░  ▓██▓███▒░
-         ░▓▓▒ ░▒██▓░   ▓▓▓      ▓██░   ▓▓▓  ▓████▓▒░  ▒▓▓░   ▒██▓░  ░░░  ▓▓█▒▓▓▒
-         ▒▓▓░  ░▓█▓░   ▓▓▓      ▒██▒  ░███  ▓██▓░     ░▒▓▓▓▓▒███▒   ░▒▒░ ▓▓▓
-         ▓▓▓    ░▒▒░   ▒▓█▒░    ░██▓ ░▓███  ▒██▒       ░▒▓▓█████▓░  ▒██▒ ▓▓▓
-         ▓▓▓           ░▒▓▓▓▓▓▓▓▒▓▓█▓█████  ░▓▓▒      ░▒█████████▓░ ▒██▒ ▓▓▓
-         ▓██░           ░▒▓▓▓▓▓▓▒▒▒▓▓█████▒░ ▒▓█▒░    ░▒███████▓███▓███░ ▓▓▓
-         ▒▓▓░             ░▒▓▓▓▓▒░░▒▓▓▒▓▓██▓░░▒█▓▒    ░▒███▓█▓▒░▓██▓█▓▒  ▒▒▒
-         ░▒▒░                          ░▒██▓░ ░▓▓▒      ░▒▓▓▓▒░ ░▒▓▓▓▒░  ░░░
-                                         ░▒▒░  ░░░
+░░          ░▓▓░                         ▒██████▓░   ▒██████▒   ▓████░   ▓████████▓▒░
+▒█▓░      ░▒███▒░▒▓████▓░ ░▓▒     ▒▓░  ░▓███▒▒▒▓██▒░ ██▓▒▓███░░▓█████▓   ███▒▒▒▒▓▓▒▓▒
+░███▒    ░█████▓███████▓░ ▒█▓     ██▒  ▒███▓    ▓██▒ ██░  ░▓█▒▓██▒ ▓██░  ▓██    ▒▓▒▓▒
+ ░████░  ░███▓▓██▓▒░      ▒█▒     ██▒  ░▓██▓░  ░██▓░ ▒██░   ░░██░  ░▓█▓  ▒██  ░▒██▓▒░
+  ░▓███▓▒▓██▒▒██▒         ▒█▒     ██▒   ▒█▓▓▓▒▓███░   ▓███▒   ██    ░██ ░▓██▓█████▒
+    ▒██████▒ ▒█▓          ▒█▒     ██▒   ▒█▒▒████▓░    ░▒▓██▒ ░██    ░██ ▒█████████▓░
+    ▒█████▓░ ▒█▓          ▒█▒     ██▓   ▒█▓█████░ ░▓▓░   ░██▒▒█▓    ▓█▒ ▒███▒▒▒▒▒▓█▓
+ ░█████▓████░░▓█████████▓░▒█▓▒▒▒▒▓███▒░ ▒████▓▓██▒▒██░   ░▓██▒██░ ░▓██  ▒██▒     ░██
+ ▒███▓▒▒▒▒███░ ▒████████▓░▒██████████▓░ ▓██░  ░▓██▒█████████▓░███████▒  ▒██░      ██
+ ░░       ░▓▓░            ░▒▒▒▒▒▒▒░▒▓░  ▒█▒     ▒▓░▒█████▓▒▒░ ░▓███▓░   ░██       ▓█▒▒░
 */
 
 void XCursor::Init(v8::Local<v8::Object> exports) {
@@ -429,27 +398,23 @@ void XCursor::Init(v8::Local<v8::Object> exports) {
   exports->Set(Nan::New("XCursor").ToLocalChecked(), tpl->GetFunction()); }
 Nan::Persistent<Function> XCursor::constructor;
 
-XCursor::XCursor(ups_db_t* keys, ups_db_t *data, const char* key, uint32_t flags){
+XCursor::XCursor(XTable *parent, const char* key, uint32_t extra_flags){
   ups_status_t s;
-  this->flags = flags;
-  this->keys = keys;
-  this->data = data;
+  this->parent = parent;
+  this->keys = parent->keys;
+  this->data = parent->data;
+  this->query_flags = parent->query_flags | extra_flags;
   this->length = strlen(key);
   this->key = strndup(key,this->length);
-  if ( UPS_SUCCESS != (s= ups_cursor_create(&this->cur, keys, 0, 0 ))){
-    // printf("cursor open %s: %s\n",key,ups_strerror(s));
-    return; }
+  if ( UPS_SUCCESS != (s= ups_cursor_create(&this->cur, keys, 0, 0 ))){ return; }
   // First Request
   uint32_t recordId; ups_key_t _key = {0,0,0,0}; ups_record_t _val = {0,0,0};
   _key.data = (void*)this->key; _key.size = this->length + 1;
   if ( UPS_SUCCESS != ( s=ups_cursor_find(this->cur, &_key, &_val, 0 ))){
-    // printf("cursor query %s: %s\n",key,ups_strerror(s));
     return; }
   if ( 0 != strcmp(key,(const char*)_key.data) ){ return; }
   recordId = *(uint32_t *) _val.data; _key.data = &recordId; _key.size = sizeof(recordId);
-  if ( UPS_SUCCESS != (s= ups_db_find(data,0, &_key, &_val, 0 ))){
-    // printf("cursor data-query %s[%i]: %s\n",key,recordId,ups_strerror(s));
-    return; }
+  if ( UPS_SUCCESS != (s= ups_db_find(data,0, &_key, &_val, 0 ))){ return; }
   this->current = Json::parse((char *)_val.data)->ToObject();
   this->open = true; }
 XCursor::~XCursor(){ this->close(); }
@@ -465,9 +430,8 @@ NAN_METHOD(XCursor::New){
   Local<Object> Parent = info[0]->ToObject();
   Local<Object> This = info.This();
   const char *query = COPY_TO_CHAR(info[1]);
-  uint32_t flags = info[2]->Uint32Value();
-  XBase* parent = ObjectWrap::Unwrap<XBase>(Parent);
-  XCursor* obj = new XCursor(parent->keys,parent->data,query,flags);
+  XTable* parent = ObjectWrap::Unwrap<XTable>(Parent);
+  XCursor* obj = new XCursor(parent, query, 0);
   if ( obj->open == false ){ delete obj; return; }
   obj->Wrap(info.This());
   This->Set(Nan::New("current").ToLocalChecked(),obj->current);
@@ -480,7 +444,7 @@ NAN_METHOD(XCursor::Close) {
 inline void XCursor::move(const Nan::FunctionCallbackInfo<v8::Value>& info, uint32_t flags){
   XCursor* that = Nan::ObjectWrap::Unwrap<XCursor>(info.Holder());
   ups_status_t s; uint32_t recordId; ups_key_t _key = {0,0,0,0}; ups_record_t _val = {0,0,0};
-  again: if ( UPS_SUCCESS != ( s = ups_cursor_move (that->cur, &_key, &_val, flags ))){
+  again: if ( UPS_SUCCESS != (s= ups_cursor_move (that->cur, &_key, &_val, flags | that->query_flags ))){
     info.Holder()->Set(Nan::New("current").ToLocalChecked(),Nan::New(false));
     info.GetReturnValue().Set(false); return; }
   recordId = *(uint32_t *) _val.data; _key.data = &recordId; _key.size = sizeof(recordId);
@@ -489,7 +453,7 @@ inline void XCursor::move(const Nan::FunctionCallbackInfo<v8::Value>& info, uint
   info.Holder()->Set(Nan::New("current").ToLocalChecked(),that->current);
   info.GetReturnValue().Set(true); }
 
-NAN_METHOD(XCursor::Next){  move(info, UPS_CURSOR_NEXT + UPS_ONLY_DUPLICATES ); }
-NAN_METHOD(XCursor::Prev){  move(info, UPS_CURSOR_PREVIOUS + UPS_ONLY_DUPLICATES ); }
-NAN_METHOD(XCursor::First){ move(info, UPS_CURSOR_FIRST + UPS_ONLY_DUPLICATES ); }
-NAN_METHOD(XCursor::Last){  move(info, UPS_CURSOR_LAST + UPS_ONLY_DUPLICATES ); }
+NAN_METHOD(XCursor::Next){  move(info, UPS_CURSOR_NEXT ); }
+NAN_METHOD(XCursor::Prev){  move(info, UPS_CURSOR_PREVIOUS ); }
+NAN_METHOD(XCursor::First){ move(info, UPS_CURSOR_FIRST ); }
+NAN_METHOD(XCursor::Last){  move(info, UPS_CURSOR_LAST ); }

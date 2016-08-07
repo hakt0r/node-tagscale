@@ -109,14 +109,15 @@ describe('ts.XScale', function() {
     stress_diff(t,COUNT); done();
   });
   it('open a cursor', function() {
-    assert.equal    ( tags.set("test",obj1) > -1, true      ); // Insert an object we want to find.
-    assert.notEqual ( c = tags.find('test'),      false     ); // Moment of truth
-    assert.notEqual ( c.current,                  undefined ); // Should be defined, i mean - we just inseted it ;)
-    assert.equal    ( c.next(),                   false     ); // It's a unique index, no other 'test' should exist
+    assert.equal    ( tags.set("test",obj1)  > -1, true      ); // Insert an object we want to find.
+    assert.equal    ( tags.set("test1",obj2) > -1, true      ); // Insert another object we want to find.
+    assert.notEqual ( c = tags.find('test'),       false     ); // Moment of truth
+    assert.notEqual ( c.current,                   undefined ); // Should be defined, i mean - we just inseted it ;)
+    assert.equal    ( c.next(),                    true      ); // Any next item, we made sure ther is one.
   });
   it('close database', function() {
-   assert.equal     ( index.close(),              true      ); // Not strictly necessary, but it should work
-   assert.equal     ( tags.close(),               true      ); // Close the database and be done with it.
+   assert.equal     ( index.close(),               true      ); // Not strictly necessary, but it should work
+   assert.equal     ( tags.close(),                true      ); // Close the database and be done with it.
   });
 });
 
