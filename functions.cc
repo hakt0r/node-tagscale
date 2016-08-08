@@ -136,8 +136,9 @@ XScale::XScale(const char* path){
     {UPS_PARAM_CUSTOM_COMPARE_NAME, (uint64_t)"string"}, {0,0}};
   this->queryFlags = UPS_FIND_NEAR_MATCH | UPS_SKIP_DUPLICATES;
   this->id = ALLOC_TABLE_ID(this);
-  if( UPS_SUCCESS != ups_env_open      (&this->env, path, 0, NULL ))
-  if( UPS_SUCCESS != ups_env_create    (&this->env, path, 0, 0664, 0 )) return;
+  bool ok = false;
+  if ( access(path,F_OK) == 0 ) ok = ( UPS_SUCCESS == ups_env_open(&this->env, path, 0, NULL ));
+  if ( !ok ) if( UPS_SUCCESS != ups_env_create    (&this->env, path, 0, 0664, 0 )) return;
   if( UPS_SUCCESS != ups_env_open_db   ( this->env, &this->keys, DBNAME_KEYS, 0,0 ))
   if( UPS_SUCCESS != ups_env_create_db ( this->env, &this->keys, DBNAME_KEYS, 0, &key_params[0]) ) return;
   if( UPS_SUCCESS != ups_env_open_db   ( this->env, &this->data, DBNAME_UID,  0,0))
@@ -317,7 +318,7 @@ NAN_METHOD(XIndex::Close) {
   info.GetReturnValue().Set(true); }
 
 inline void XIndex::setBool(uint32_t recordId, Local<Object> Subject, Local<String> IndexKey){
-  if ( Subject->Get(IndexKey)->IsFalse() ){ printf("NOT_SET_BOOL\n"); return; }
+  if ( Subject->Get(IndexKey)->IsFalse() ){ return; }
   ups_status_t s; ups_key_t _key = {0,0,0,0}; ups_record_t _val = {4,&recordId,0};
   _key.data = &recordId; _key.size = sizeof(recordId);
   if ( UPS_SUCCESS != (s= ups_db_insert(this->keys, 0, &_key, &_val, 0 ))){
@@ -447,7 +448,7 @@ XCursor::XCursor(XTable *parent, const char* key, uint32_t extra_flags){
   // Get Data
   recordId = *(uint32_t*) _val.data; _key.data = &recordId; _key.size = sizeof(recordId);
   if ( UPS_SUCCESS != (s= ups_db_find(data,0, &_key, &_val, 0 ))){
-    printf("NEW_CURSee\n",ups_strerror(s));
+    printf("NEW_CURSee %s\n",ups_strerror(s));
     return; }
   this->current = Json::parse((char *)_val.data)->ToObject();
   this->open = true; }

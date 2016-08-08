@@ -29,7 +29,7 @@ var obj2 = {tag:['hash'],body:'test2',fancy:"other"};
 var obj3 = {tag:['hash','other'],body:'test3'};
 var obj4 = {tag:[],body:'test4',fancy:false};
 
-var COUNT = 100000, i = 0, keys, rk, rks, vals;
+var COUNT = 1000, i = 0, keys, rk, rks, vals;
 keys = new Array(COUNT); vals = new Array(COUNT);
 fnv = function(s) {
   var h = 0, i = 0; s = s.toString();
@@ -95,17 +95,17 @@ describe('ts.XScale', function() {
     assert.equal(typeof tags.set("test",obj1) == 'number',true); assert.deepEqual(tags.get("test"),obj1);
   });
   it('survive a little (write) stress test', function(done) {
-    this.timeout(5000); var i, COUNT = 10, t = Date.now();
+    this.timeout(5000); var i, COUNT = 10000, t = Date.now();
     for (i = 0; i < COUNT; i++) tags.set(keys[i], vals[i]);
     stress_diff(t,COUNT); done();
   });
   it('survive a little (get) stress test', function(done) {
-    this.timeout(5000); var i, COUNT = 10, t = Date.now();
+    this.timeout(5000); var i, COUNT = 10000, t = Date.now();
     for (i = 0; i < COUNT; i++) tags.get(keys[i]);
     stress_diff(t,COUNT); done();
   });
   it('survive a little (del) stress test', function(done) {
-    this.timeout(5000); var i, COUNT = 10, t = Date.now();
+    this.timeout(5000); var i, COUNT = 10000, t = Date.now();
     for (i = 0; i < COUNT; i++) tags.del(keys[i]);
     stress_diff(t,COUNT); done();
   });
