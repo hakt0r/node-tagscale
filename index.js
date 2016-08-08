@@ -23,9 +23,12 @@
 
 module.exports = exports = require('bindings')('NativeExtension');
 
-exports.DATE = 1
-exports.STRING = 2
-exports.STRING_ARRAY = 3
+exports.XSCALE       = 1
+exports.KEYVAL       = 2
+exports.BOOL         = 4
+exports.DATE         = 8
+exports.STRING       = 16
+exports.STRING_ARRAY = 32
 
 exports.TagScale = class TagScale extends exports.XScale {
   constructor(path){

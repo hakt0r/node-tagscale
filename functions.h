@@ -33,6 +33,13 @@ using namespace std;
 using namespace v8;
 using namespace Nan;
 
+#define XTYPE_XSCALE        1
+#define XTYPE_KEYVAL        2
+#define XTYPE_BOOL          4
+#define XTYPE_DATE          8
+#define XTYPE_STRING        16
+#define XTYPE_STRING_ARRAY  32
+
 typedef class XScale XScale;
 typedef class XIndex XIndex;
 typedef class XCursor XCursor;
@@ -55,12 +62,13 @@ class Json {
 
 class XBase : public Nan::ObjectWrap {
 public:
-  uint32_t query_flags;
+  uint32_t queryFlags;
   ups_db_t *keys;
   ups_db_t *data; };
 
 class XTable : public XBase {
 public:
+  uint32_t indexFlags;
   static NAN_METHOD(Find); };
 
 class XScale : public XTable {
@@ -89,7 +97,16 @@ class XIndex : public XTable {
   static void Init(v8::Local<v8::Object> exports);
   static Nan::Persistent<v8::Function> constructor;
   inline void set(uint32_t recordId, Local<Object> Subject);
+  inline void setBool(uint32_t recordId, Local<Object> Subject, Local<String> IndexKey);
+  inline void setDate(uint32_t recordId, Local<Object> Subject, Local<String> IndexKey);
+  inline void setString(uint32_t recordId, Local<Object> Subject, Local<String> IndexKey);
+  inline void setStringArray(uint32_t recordId, Local<Object> Subject, Local<String> IndexKey);
   inline void del(uint32_t recordId, Local<Object> Subject);
+  inline void delBool(ups_cursor_t *cursor, uint32_t recordId, Local<Object> Subject, Local<String> IndexKey);
+  inline void delDate(ups_cursor_t *cursor, uint32_t recordId, Local<Object> Subject, Local<String> IndexKey);
+  inline void delString(ups_cursor_t *cursor, uint32_t recordId, Local<Object> Subject, Local<String> IndexKey);
+  inline void delStringArray(ups_cursor_t *cursor, uint32_t recordId, Local<Object> Subject, Local<String> IndexKey);
+  inline void innerDelString(ups_cursor_t *cursor, uint32_t recordId, const char* value);
   XScale *parent;
  private:
   explicit XIndex(XScale *parent, const char* name, uint32_t flags, Local<Object> This);
@@ -100,7 +117,6 @@ class XIndex : public XTable {
   static NAN_METHOD(Set);
   static NAN_METHOD(Get);
   static NAN_METHOD(Del);
-  uint32_t flags;
   char *name = NULL;
   bool open = false; };
 
@@ -108,8 +124,8 @@ class XCursor : public XBase {
  public:
   static void Init(v8::Local<v8::Object> exports);
   static Nan::Persistent<v8::Function> constructor;
-  char *key;
-  int length;
+  char *key; int length;
+  char *current_key;
  private:
   explicit XCursor(XTable *parent, const char* key, uint32_t extra_flags);
   ~XCursor();
@@ -120,6 +136,7 @@ class XCursor : public XBase {
   static NAN_METHOD(Prev);
   static NAN_METHOD(First);
   static NAN_METHOD(Last);
+  inline void invalidate(const Nan::FunctionCallbackInfo<v8::Value>& info, Local<Object> This);
   static inline void move(const Nan::FunctionCallbackInfo<v8::Value>& info, uint32_t flags);
   XTable *parent;
   Local<Object> current;

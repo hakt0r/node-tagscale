@@ -27,10 +27,7 @@
 
 static inline char *COPY_TO_CHAR(Handle<Value> val) {
   String::Utf8Value utf8(val->ToString());
-  int len = utf8.length() + 1;
-  char *str = (char *) calloc(sizeof(char), len);
-  strncpy(str, *utf8, len);
-  return str; }
+  return strndup( *utf8, utf8.length() + 1); }
 
 static int string_compare (
   ups_db_t *db, const uint8_t *lhs, uint32_t lhs_length, const uint8_t *rhs, uint32_t rhs_length
@@ -137,7 +134,7 @@ XScale::XScale(const char* path){
   ups_parameter_t key_params[] = {
     {UPS_PARAM_KEY_TYPE, UPS_TYPE_CUSTOM}, {UPS_PARAM_RECORD_SIZE, sizeof(uint32_t)},
     {UPS_PARAM_CUSTOM_COMPARE_NAME, (uint64_t)"string"}, {0,0}};
-  this->query_flags = UPS_FIND_NEAR_MATCH | UPS_SKIP_DUPLICATES;
+  this->queryFlags = UPS_FIND_NEAR_MATCH | UPS_SKIP_DUPLICATES;
   this->id = ALLOC_TABLE_ID(this);
   if( UPS_SUCCESS != ups_env_open      (&this->env, path, 0, NULL ))
   if( UPS_SUCCESS != ups_env_create    (&this->env, path, 0, 0664, 0 )) return;
@@ -276,19 +273,22 @@ void XIndex::Init(v8::Local<v8::Object> exports) {
 Nan::Persistent<Function> XIndex::constructor;
 
 XIndex::XIndex(XScale *parent, const char *name, uint32_t flags, Local<Object> This){
-  this->query_flags = UPS_ONLY_DUPLICATES;
+  this->queryFlags = UPS_ONLY_DUPLICATES;
   int id = parent->indexCount;
-  this->name    = (char*) name;
-  this->flags   = flags;
-  this->parent  = parent;
-  this->data    = parent->data;
+  this->name       = (char*) name;
+  this->indexFlags = flags;
+  this->parent     = parent;
+  this->data       = parent->data;
+  ups_parameter_t bool_params[] = {
+    {UPS_PARAM_KEY_TYPE, UPS_TYPE_UINT32}, {UPS_PARAM_RECORD_SIZE, sizeof(uint32_t)}, {0,0}};
   ups_parameter_t date_params[] = {
     {UPS_PARAM_KEY_TYPE, UPS_TYPE_UINT64}, {UPS_PARAM_RECORD_SIZE, sizeof(uint32_t)}, {0,0}};
   ups_parameter_t string_params[] = {
     {UPS_PARAM_KEY_TYPE, UPS_TYPE_CUSTOM}, {UPS_PARAM_RECORD_SIZE, sizeof(uint32_t)},
     {UPS_PARAM_CUSTOM_COMPARE_NAME, (uint64_t)"string"}, {0,0}};
   ups_parameter_t* params = NULL;
-  if ( flags == 1 ) params = &date_params[0];
+  if ( flags == XTYPE_BOOL ) { this->queryFlags = 0; params = &bool_params[0]; }
+  else if ( flags == XTYPE_DATE ) params = &date_params[0];
   else params = &string_params[0];
   if ( UPS_SUCCESS != ups_env_open_db(parent->env, &this->keys, id+128, 0,0) ){
     if ( UPS_SUCCESS != ups_env_create_db(parent->env, &this->keys, id+128, UPS_ENABLE_DUPLICATE_KEYS, params)){
@@ -316,63 +316,88 @@ NAN_METHOD(XIndex::Close) {
   // XIndex* t = Nan::ObjectWrap::Unwrap<XIndex>(info.Holder());
   info.GetReturnValue().Set(true); }
 
-inline void XIndex::set(uint32_t recordId, Local<Object> Subject){
+inline void XIndex::setBool(uint32_t recordId, Local<Object> Subject, Local<String> IndexKey){
+  if ( Subject->Get(IndexKey)->IsFalse() ){ printf("NOT_SET_BOOL\n"); return; }
+  ups_status_t s; ups_key_t _key = {0,0,0,0}; ups_record_t _val = {4,&recordId,0};
+  _key.data = &recordId; _key.size = sizeof(recordId);
+  if ( UPS_SUCCESS != (s= ups_db_insert(this->keys, 0, &_key, &_val, 0 ))){
+    printf("hereE %s\n",ups_strerror(s)); }}
+
+inline void XIndex::setDate(uint32_t recordId, Local<Object> Subject, Local<String> IndexKey){
   ups_key_t _key = {0,0,0,0}; ups_record_t _val = {0,0,0};
   _val.data = &recordId; _val.size = sizeof(recordId);
+  struct timespec spec; clock_gettime(CLOCK_REALTIME, &spec); uint64_t secs = (uint64_t)spec.tv_sec;
+  _key.data = (void*)&secs; _key.size = sizeof(uint64_t);
+  if ( UPS_SUCCESS != ups_db_insert(this->keys, 0, &_key, &_val, 0 )) return; }
+
+inline void XIndex::setString(uint32_t recordId, Local<Object> Subject, Local<String> IndexKey){
+  ups_status_t s; ups_key_t _key = {0,0,0,0}; ups_record_t _val = {0,0,0};
+  _val.data = &recordId; _val.size = sizeof(recordId);
+  const char *key = COPY_TO_CHAR(Subject->Get(IndexKey)->ToString());
+  _key.data = (void*)key; _key.size = (uint32_t)strlen(key) + 1;
+  if ( UPS_SUCCESS != (s= ups_db_insert(this->keys, 0, &_key, &_val, UPS_DUPLICATE ))) {
+    printf("%s %s\n",__FUNCTION__,ups_strerror(s));
+    return; }
+  free((void*)key); }
+
+inline void XIndex::setStringArray(uint32_t recordId, Local<Object> Subject, Local<String> IndexKey){
+  ups_key_t _key = {0,0,0,0}; ups_record_t _val = {0,0,0};
+  _val.data = &recordId; _val.size = sizeof(recordId);
+  Local<Array> List = Local<Array>::Cast(Subject->Get(IndexKey));
+  int length = List->Length();
+  const char *key; Local<Value> item;
+  if ( List->IsArray() && length > 0 ) for(int i = 0; i < length; i++){
+    if ( !(item = List->Get(i))->IsString() ){ continue; }
+    key = COPY_TO_CHAR(item); _key.data = (void*)key; _key.size = (uint32_t)strlen(key) + 1;
+    ups_db_insert(this->keys, 0, &_key, &_val, UPS_DUPLICATE);
+    free((void*)key); }}
+
+inline void XIndex::set(uint32_t recordId, Local<Object> Subject){
   Local<String> IndexKey = String::NewFromUtf8(Isolate::GetCurrent(),this->name);
   if ( !Subject->Has(IndexKey) ) return;
-  if ( this->flags == 1 ){
-    struct timespec spec; clock_gettime(CLOCK_REALTIME, &spec); uint64_t secs = (uint64_t)spec.tv_sec;
-    _key.data = (void*)&secs; _key.size = sizeof(uint64_t);
-    if ( UPS_SUCCESS != ups_db_insert(this->keys, 0, &_key, &_val, 0 )) return; }
-  if ( this->flags == 2 ){
-    const char *key = COPY_TO_CHAR(Subject->Get(IndexKey)->ToString());
-    _key.data = (void*)key; _key.size = (uint32_t)strlen(key) + 1;
-    free((void*)key);
-    if ( UPS_SUCCESS != ups_db_insert(this->keys, 0, &_key, &_val, 0 )) return; }
-  if ( this->flags == 3 ){
-    Local<Array> List = Local<Array>::Cast(Subject->Get(IndexKey));
-    int length = List->Length();
-    const char *key; Local<Value> item;
-    if ( List->IsArray() && length > 0 ) for(int i = 0; i < length; i++){
-      if ( !(item = List->Get(i))->IsString() ){ continue; }
-      key = COPY_TO_CHAR(item); _key.data = (void*)key; _key.size = (uint32_t)strlen(key) + 1;
-      ups_db_insert(this->keys, 0, &_key, &_val, UPS_DUPLICATE);
-      free((void*)key); }}}
+  switch ( this->indexFlags ) {
+    case XTYPE_BOOL:         XIndex::setBool(recordId, Subject, IndexKey);        break;
+    case XTYPE_DATE:         XIndex::setDate(recordId, Subject, IndexKey);        break;
+    case XTYPE_STRING:       XIndex::setString(recordId, Subject, IndexKey);      break;
+    case XTYPE_STRING_ARRAY: XIndex::setStringArray(recordId, Subject, IndexKey); break; }}
 
-static inline bool cursor_remove_string(ups_cursor_t *cursor, uint32_t recordId, const char *key){
+inline void XIndex::delBool(ups_cursor_t *cursor, uint32_t recordId, Local<Object> Subject, Local<String> IndexKey){
+  ups_key_t _key = {0,0,0,0}; _key.size = (sizeof(uint32_t)); _key.data = &recordId;
+  ups_db_erase(this->keys, 0, &_key, 0 ); }
+
+inline void XIndex::delDate(ups_cursor_t *cursor, uint32_t recordId, Local<Object> Subject, Local<String> IndexKey){}
+
+inline void XIndex::delString(ups_cursor_t *cursor, uint32_t recordId, Local<Object> Subject, Local<String> IndexKey){
+  innerDelString(cursor,recordId,COPY_TO_CHAR(Subject->Get(IndexKey))); }
+
+inline void XIndex::delStringArray(ups_cursor_t *cursor, uint32_t recordId, Local<Object> Subject, Local<String> IndexKey){
+  Local<Value> Member = Subject->Get(IndexKey); if ( !Member->IsArray() ) return;
+  Local<Array> List = Local<Array>::Cast(Member); int length = List->Length();
+  if ( length > 0 ) for( int i = 0; i < length; i++) innerDelString(cursor,recordId,COPY_TO_CHAR(List->Get(i))); }
+
+inline void XIndex::innerDelString(ups_cursor_t *cursor, uint32_t recordId, const char* value){
   uint32_t foundId; uint32_t duplicateKeys = 0; ups_key_t _key = {0,0,0,0}; ups_record_t _val = {0,0,0};
-  _key.data = (void*)key;  _key.size = (uint32_t) strlen(key) + 1;
-  if ( UPS_SUCCESS != ups_cursor_find(cursor, &_key, &_val, 0)                  ) return false;
-  if ( UPS_SUCCESS != ups_cursor_get_duplicate_count(cursor, &duplicateKeys, 0) ) return false;
+  _key.data = (void*)value;  _key.size = (uint32_t) strlen(value) + 1;
+  if ( UPS_SUCCESS != ups_cursor_find(cursor, &_key, &_val, 0)                  ) return;
+  if ( UPS_SUCCESS != ups_cursor_get_duplicate_count(cursor, &duplicateKeys, 0) ) return;
   for(uint32_t i=0;i<duplicateKeys;i++){
     if ( ( foundId = *(uint32_t *) _val.data ) == recordId ){ ups_cursor_erase (cursor,0); break; }
     if ( UPS_SUCCESS != ups_cursor_move (cursor, &_key, &_val, UPS_CURSOR_NEXT + UPS_ONLY_DUPLICATES) ){ break; }}
-  return true; }
+  free ((void*)value); }
 
 inline void XIndex::del(uint32_t recordId, Local<Object> Subject){
-  Local<String> IndexKey = String::NewFromUtf8(Isolate::GetCurrent(),this->name);
+  ups_cursor_t *cursor; Local<String> IndexKey = String::NewFromUtf8(Isolate::GetCurrent(),this->name);
   if ( !Subject->Has(IndexKey) ) return;
-  ups_cursor_t *cursor; if ( UPS_SUCCESS != ups_cursor_create(&cursor, this->keys, 0, 0) ){ return; }
-  const char* value;
-  if ( this->flags == 1 ){}
-  if ( this->flags == 2 ){
-    value = COPY_TO_CHAR(Subject->Get(IndexKey));
-    cursor_remove_string(cursor,recordId,value);
-    free((void*)value); }
-  if ( this->flags == 3 ){
-    Local<Value> Member = Subject->Get(IndexKey);
-    if ( Member->IsArray() ){
-      Local<Array> List = Local<Array>::Cast(Member);
-        int length = List->Length();
-        if ( length > 0 ) for( int i = 0; i < length; i++){
-          value = COPY_TO_CHAR(List->Get(i));
-          cursor_remove_string(cursor,recordId,value);
-          free((void*)value);}}}
+  if ( UPS_SUCCESS != ups_cursor_create(&cursor, this->keys, 0, 0) ){ return; }
+  switch ( this->indexFlags ) {
+    case XTYPE_BOOL:         delBool(cursor,recordId,Subject,IndexKey);   break;
+    case XTYPE_DATE:         delDate(cursor,recordId,Subject,IndexKey);   break;
+    case XTYPE_STRING:       delString(cursor,recordId,Subject,IndexKey); break;
+    case XTYPE_STRING_ARRAY: delStringArray(cursor,recordId,Subject,IndexKey); }
   ups_cursor_close(cursor); }
 
 /*
-░░          ░▓▓░                         ▒██████▓░   ▒██████▒   ▓████░   ▓████████▓▒░
+░░          ░▓▓░                         ▒██████▓░   ▒██████▒   ▓████░     ▓█████▓▒░
 ▒█▓░      ░▒███▒░▒▓████▓░ ░▓▒     ▒▓░  ░▓███▒▒▒▓██▒░ ██▓▒▓███░░▓█████▓   ███▒▒▒▒▓▓▒▓▒
 ░███▒    ░█████▓███████▓░ ▒█▓     ██▒  ▒███▓    ▓██▒ ██░  ░▓█▒▓██▒ ▓██░  ▓██    ▒▓▒▓▒
  ░████░  ░███▓▓██▓▒░      ▒█▒     ██▒  ░▓██▓░  ░██▓░ ▒██░   ░░██░  ░▓█▓  ▒██  ░▒██▓▒░
@@ -399,22 +424,31 @@ void XCursor::Init(v8::Local<v8::Object> exports) {
 Nan::Persistent<Function> XCursor::constructor;
 
 XCursor::XCursor(XTable *parent, const char* key, uint32_t extra_flags){
+  uint32_t recordId; ups_key_t _key = {0,0,0,0}; ups_record_t _val = {0,0,0};
   ups_status_t s;
   this->parent = parent;
   this->keys = parent->keys;
   this->data = parent->data;
-  this->query_flags = parent->query_flags | extra_flags;
-  this->length = strlen(key);
-  this->key = strndup(key,this->length);
+  this->queryFlags = parent->queryFlags | extra_flags;
   if ( UPS_SUCCESS != (s= ups_cursor_create(&this->cur, keys, 0, 0 ))){ return; }
   // First Request
-  uint32_t recordId; ups_key_t _key = {0,0,0,0}; ups_record_t _val = {0,0,0};
-  _key.data = (void*)this->key; _key.size = this->length + 1;
-  if ( UPS_SUCCESS != ( s=ups_cursor_find(this->cur, &_key, &_val, 0 ))){
+  if ( parent->indexFlags == XTYPE_BOOL ){
+    this->queryFlags = 0;
+    if ( UPS_SUCCESS != ( s=ups_cursor_move(this->cur, &_key, &_val, UPS_CURSOR_NEXT ))){
+      printf("!moved[%s]: [bool]\n", ups_strerror(s));
+      return; }
+    this->key         = strndup( (char*)_key.data, _key.size );
+    this->current_key = strndup( (char*)_key.data, _key.size );
+  } else {
+    this->length = strlen(key); this->key = strndup(key,this->length);
+    _key.data = (void*)this->key; _key.size = this->length + 1;
+    if ( UPS_SUCCESS != ( s=ups_cursor_find(this->cur, &_key, &_val, 0 ))){ return; }
+    this->current_key = strndup( (char*)_key.data, _key.size - 1 ); }
+  // Get Data
+  recordId = *(uint32_t*) _val.data; _key.data = &recordId; _key.size = sizeof(recordId);
+  if ( UPS_SUCCESS != (s= ups_db_find(data,0, &_key, &_val, 0 ))){
+    printf("NEW_CURSee\n",ups_strerror(s));
     return; }
-  if ( 0 != strcmp(key,(const char*)_key.data) ){ return; }
-  recordId = *(uint32_t *) _val.data; _key.data = &recordId; _key.size = sizeof(recordId);
-  if ( UPS_SUCCESS != (s= ups_db_find(data,0, &_key, &_val, 0 ))){ return; }
   this->current = Json::parse((char *)_val.data)->ToObject();
   this->open = true; }
 XCursor::~XCursor(){ this->close(); }
@@ -423,6 +457,7 @@ void XCursor::close(){
   if ( !this->open ) return;
   ups_cursor_close(this->cur);
   free((void*)this->key);
+  free(this->current_key);
   this->open = false; }
 
 NAN_METHOD(XCursor::New){
@@ -435,22 +470,39 @@ NAN_METHOD(XCursor::New){
   if ( obj->open == false ){ delete obj; return; }
   obj->Wrap(info.This());
   This->Set(Nan::New("current").ToLocalChecked(),obj->current);
+  This->Set(Nan::New("key").ToLocalChecked(),Nan::New(obj->current_key).ToLocalChecked());
   info.GetReturnValue().Set(info.This()); }
 
 NAN_METHOD(XCursor::Close) {
   XCursor* that = Nan::ObjectWrap::Unwrap<XCursor>(info.Holder());
   that->close(); info.GetReturnValue().Set(true); }
 
+inline void XCursor::invalidate(const Nan::FunctionCallbackInfo<v8::Value>& info,Local<Object> This){
+  printf("INVALIDATE\n");
+  This->Set(Nan::New("current").ToLocalChecked(),Nan::New(false));
+  This->Set(Nan::New("key").ToLocalChecked(),Nan::New(false));
+  info.GetReturnValue().Set(false); }
+
 inline void XCursor::move(const Nan::FunctionCallbackInfo<v8::Value>& info, uint32_t flags){
   XCursor* that = Nan::ObjectWrap::Unwrap<XCursor>(info.Holder());
   ups_status_t s; uint32_t recordId; ups_key_t _key = {0,0,0,0}; ups_record_t _val = {0,0,0};
-  again: if ( UPS_SUCCESS != (s= ups_cursor_move (that->cur, &_key, &_val, flags | that->query_flags ))){
-    info.Holder()->Set(Nan::New("current").ToLocalChecked(),Nan::New(false));
+  Local<Object> That = info.Holder();
+  if ( !that->open ) {
+    printf("not open\n");
+    that->invalidate(info,That); return; }
+  again:
+  if ( UPS_SUCCESS != (s= ups_cursor_move (that->cur, &_key, &_val, flags | that->queryFlags ))){
     info.GetReturnValue().Set(false); return; }
+  that->current_key = (char*) realloc( (void*)that->current_key, _key.size - 1 );
+  strncpy( that->current_key, (char*)_key.data, _key.size - 1 );
+  // Get Data
   recordId = *(uint32_t *) _val.data; _key.data = &recordId; _key.size = sizeof(recordId);
-  if ( UPS_SUCCESS != ( s = ups_db_find(that->data, 0, &_key, &_val, 0 ))){ goto again; }
+  if ( UPS_SUCCESS != (s= ups_db_find(that->data, 0, &_key, &_val, 0 ))){
+    printf("next::again[%s]: %s\n", that->key,ups_strerror(s));
+    goto again; }
   that->current = Json::parse((char*)_val.data)->ToObject();
-  info.Holder()->Set(Nan::New("current").ToLocalChecked(),that->current);
+  That->Set(Nan::New("current").ToLocalChecked(),that->current);
+  That->Set(Nan::New("key").ToLocalChecked(),Nan::New(that->current_key).ToLocalChecked());
   info.GetReturnValue().Set(true); }
 
 NAN_METHOD(XCursor::Next){  move(info, UPS_CURSOR_NEXT ); }

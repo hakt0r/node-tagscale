@@ -69,6 +69,7 @@ if ( db = new ts.XScale('somefile.db') ){
   - ***defineIndex***(name,type)
     - *string* **name** - Name of the index and -OFC- the field to be indexed.
     - *number* **type** - Type of index you desire
+      - 1: ts.**BOOL** - Records with ( key && key != false )
       - 1: ts.**DATE** - Attach a timestamp (automatic)
       - 2: ts.**STRING** - A String whose value should be indexed
       - 3: ts.**STRING_ARRAY** - An Array of strings - like tags ;>
@@ -76,7 +77,7 @@ if ( db = new ts.XScale('somefile.db') ){
 
 #### *class* **XIndex**
 - ***find***(key)
-  - *string* **key** - the key to look up";
+  - *string* **key** - the key to look up (not require fr ts.BOOL)
   - return (*XCursor* or false);
 
 #### *class* **XCursor**

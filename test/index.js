@@ -24,9 +24,10 @@ var assert = require('assert');
 var fs = require('fs');
 var db = null;
 
-var obj1 = {tag:['news','test','hash'],body:'test'};
-var obj2 = {tag:['hash'],body:'test2'};
+var obj1 = {tag:['news','test','hash'],body:'test',fancy:true};
+var obj2 = {tag:['hash'],body:'test2',fancy:"other"};
 var obj3 = {tag:['hash','other'],body:'test3'};
+var obj4 = {tag:[],body:'test4',fancy:false};
 
 var COUNT = 100000, i = 0, keys, rk, rks, vals;
 keys = new Array(COUNT); vals = new Array(COUNT);
@@ -122,7 +123,110 @@ describe('ts.XScale', function() {
 });
 
 var cursor = null, a1,a2,a3;
-describe('ts.XScale.byTag', function() {
+
+describe('ts.XIndex<BOOL>', function() {
+  it('prepare database', function() {
+    fs.existsSync('./test.db') && fs.unlinkSync('./test.db');
+    tags = new ts.XScale('test.db');
+    assert.notStrictEqual( index = tags.defineIndex('fancy',ts.BOOL), false);
+    tags.set('testBools1',obj1);
+    tags.set('testBools2',obj2);
+    tags.set('testBools4',obj3);
+    tags.set('testBools3',obj4);
+  });
+  it('open a cursor', function() {
+    cursor = tags.fancy.find(null);
+    assert.notStrictEqual(cursor,false);
+  });
+  it('close that cursor', function() {
+    assert.notStrictEqual(cursor.close(),false);
+  });
+  it('find tags and walk on them (1) - find()', function() {
+    a = tags.fancy.find(null); a1 = a.current;
+    assert.equal(a1.body,'test');
+    assert.notEqual(a1.fancy,undefined);
+  });
+  it('find tags and walk on them (2) - next()', function() {
+    assert.strictEqual(a.next(),true);
+    assert.notEqual(a2 = a.current, undefined);
+    assert.notDeepEqual(a1.body,a2.body);
+    assert.notDeepEqual(a1.fancy,a2.fancy);
+  });
+  it('find tags and walk on them (3) - end of list', function() {
+    assert.deepEqual( a.next(),  false);
+    assert.deepEqual( a.close(), true);
+  });
+  it('should be removed', function() {
+    tags.del('testBools1');
+    c = tags.fancy.find(null);
+    assert.equal(c.current.body,"test2");
+    c.close();
+  });
+  it('multiple cursors', function() {
+    tags.set('testBools1',obj1);
+    a = tags.fancy.find(null); assert.notEqual(a.current, undefined)
+    b = tags.fancy.find(null); assert.notEqual(b.current, undefined); b.next()
+    assert.notEqual(b.current.fancy, a.current.fancy);
+    a.close(); b.close()
+  });
+  it('close database', function() {
+    assert.equal(tags.close(),true);
+  });
+});
+
+describe('ts.XIndex<STRING>', function() {
+  it('prepare database', function() {
+    fs.existsSync('./test.db') && fs.unlinkSync('./test.db');
+    tags = new ts.XScale('test.db');
+    assert.notStrictEqual( index = tags.defineIndex('body',ts.STRING), false);
+    tags.set('testStrings1',obj1);
+    tags.set('testStrings2',obj1);
+    tags.set('testStrings3',obj3);
+  });
+  it('open a cursor', function() {
+    cursor = tags.body.find('test');
+    assert.notStrictEqual(cursor,false);
+  });
+  it('close that cursor', function() {
+    assert.notStrictEqual(cursor.close(),false);
+  });
+  it('find tags and walk on them (1) - find()', function() {
+    a = tags.body.find('test'); a1 = a.current;
+    assert.notEqual(a1.tag.indexOf('hash'),-1);
+  });
+  it('find tags and walk on them (2) - next()', function() {
+    assert.strictEqual(a.next(),true);
+    assert.notEqual(a2 = a.current,undefined);
+    assert.notEqual(a2.tag.indexOf('hash'),-1);
+    assert.deepEqual(a1.tag,a2.tag);
+    assert.deepEqual(a1.body,a2.body);
+  });
+  it('find tags and walk on them (4) - end of list', function() {
+    assert.deepEqual(a.next(),false);
+    assert.deepEqual(a.close(),true);
+  });
+  it('dont find non-existing tags', function() {
+    assert.equal(tags.body.find('foo'),false)
+  });
+  it('should be removed', function() {
+    tags.set('testStrings',{body:'uniqueString'});
+    assert.notEqual(tags.body.find('uniqueString'),false);
+    tags.del('testStrings');
+    assert.equal(tags.get('testTags4'),false);
+    assert.equal(tags.body.find('uniqueString'),false);
+  });
+  it('multiple cursors', function() {
+    a = tags.body.find('test');  assert.notEqual(a.current, undefined)
+    b = tags.body.find('test3'); assert.notEqual(b.current, undefined)
+    assert.notEqual(b.current.body, a.current.body);
+    a.close(); b.close()
+  });
+  it('close database', function() {
+    assert.equal(tags.close(),true);
+  });
+});
+
+describe('ts.XIndex<STRING_ARRAY>', function() {
   it('prepare database', function() {
     fs.existsSync('./test.db') && fs.unlinkSync('./test.db');
     tags = new ts.XScale('test.db');
@@ -136,7 +240,7 @@ describe('ts.XScale.byTag', function() {
     assert.notStrictEqual(cursor,false);
   });
   it('close that cursor', function() {
-    assert.notStrictEqual(cursor.close(),false);
+    assert.strictEqual(cursor.close(),true);
   });
   it('find tags and walk on them (1) - find()', function() {
     a = tags.tag.find('hash'); a1 = a.current;
@@ -157,17 +261,16 @@ describe('ts.XScale.byTag', function() {
     assert.notDeepEqual(a2.body,a3.body);
   });
   it('find tags and walk on them (4) - end of list', function() {
-    a.next();
-    assert.deepEqual(a.current,false);
-    a.close()
+    assert.deepEqual(a.next(),false);
+    assert.deepEqual(a.close(),true);
   });
   it('dont find non-existing tags', function() {
     assert.equal(tags.tag.find('foo'),false)
   });
   it('should be removed', function() {
-    tags.set('testTags4',{tag:['uniqueTag']});
+    tags.set('testStrings4',{tag:['uniqueTag']});
     assert.notEqual(tags.tag.find('uniqueTag'),false);
-    tags.del('testTags4');
+    tags.del('testStrings4');
     assert.equal(tags.get('testTags4'),false);
     assert.equal(tags.tag.find('uniqueTag'),false);
   });
