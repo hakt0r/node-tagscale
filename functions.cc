@@ -44,13 +44,13 @@ void tagscale_closeAll(void){ for(int i = 0;i<TABLE_MAX;i++) if ( TABLE[i] != NU
 NAN_METHOD(upb_closeAll){ tagscale_closeAll(); info.GetReturnValue().Set(true); }
 
 /*
- ░░░        ░▒▓▓▒░   ░▒▓▓▓▒░      ░▓██▓▒    ░███░
- ▒▓▓▒░▒░▒░███████▒  ▒███▓█▓▒     ▒▓█████▓▒   ▓███▓▒
-          ▓▓▓       ▒▓▓░         ▓▓▓   ▓▓▓   ▓▓▓░▓▓▒   ░▒▒░
+ ░░░        ░▒▓▓▒░   ░▒▓▓▓▒░      ░▓██▓▒    ░███░       ░▒░
+ ▒▓▓▒░▒░▒░███████▒  ▒███▓█▓▒     ▒▓█████▓▒   ▓███▓▒    ░▓▒░
+          ▓▓▓       ▒▓▓░         ▓▓▓   ▓▓▓   ▓▓▓░▓▓▒   ░▓▒░
           ░▒▓▒░      ▒▓█▒░       ▓▓▓   ▓▓▓   ░▓▓▒░▓▓▒   ▓▓▓
        ░░░  ░▒▓▒░     ▒▓█▓▓▒░    ▓▓▓  ░▒▒░    ▓▓▓ ▓▓▓   ▓▓▓
-      ░▓▓▒   ░▒▓▒░    ▒▒▓▒██▓░   ▓▓▓  ▒▒▒     ▓▓▓ ▓▓▓   ▓▓▓
-      ░▓██▓▓▓▓▓██▓    ▓▓▓░▓██▒   ▒███▓█▓▒     ▓▓▓ ▓▓▓  ░▓▓▒
+      ░▓▓▒   ░▒▓▒░   ▒▓▒  ██▓░   ▓▓▓  ▒▒▒     ▓▓▓ ▓▓▓   ▓▓▓
+      ░▓██▓▓▓▓▓██▓    ▒▓▓░▓██▒   ▒███▓█▓▒     ▓▓▓ ▓▓▓  ░▓▓▒
           ░▒▓▓▓▓▒░    ░▓███▒░     ░▒▓▓▒░      ░░░ ▒██▒░▓▓▒
                        ▒██▒                       ░███▓▓▒░
 */
@@ -173,7 +173,7 @@ NAN_METHOD(XScale::Close) {
 NAN_METHOD(XScale::Set) {
   Isolate *isolate = Isolate::GetCurrent(); v8::HandleScope scope( isolate );
   XScale* that = Nan::ObjectWrap::Unwrap<XScale>(info.Holder());
-  if ( info.Length() != 2 || !info[0]->IsString() || !info[1]->IsObject() ){ info.GetReturnValue().Set(false); return; }
+  if ( info.Length() != 2 or !info[0]->IsString() ){ info.GetReturnValue().Set(false); return; }
   uint32_t recordId; ups_key_t _key = {0,0,0,0}; ups_record_t _val = {0,0,0};
   const char *key = COPY_TO_CHAR(info[0]);
   uint32_t valLen = -1; const char* val = Json::stringify(info[1],&valLen);

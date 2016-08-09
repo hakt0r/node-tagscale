@@ -55,8 +55,12 @@ function stress_diff(t,c){ setImmediate( function(){
 describe('ts.XScale', function() {
   it('open database', function() {
     fs.existsSync('./test.db') && fs.unlinkSync('./test.db');
-    tags = new ts.XScale('test.db'); index = tags.defineIndex('tag',ts.STRING_ARRAY);
+    tags = new ts.XScale('test.db');
     assert.notStrictEqual(tags,false);
+  });
+  it('insert a string', function() {
+    assert.equal(tags.set("test","hello world"),true);
+    assert.equal(tags.get("test"),"hello world");
   });
   it('insert a plain object', function() {
     assert.equal(tags.set("test",{}),true);
@@ -71,14 +75,9 @@ describe('ts.XScale', function() {
     assert.deepEqual(tags.get("test"),obj1)
   });
   it('reopen', function() {
-    assert.equal(index.close(),true); assert.equal(tags.close(),true);
-    tags = new ts.XScale('test.db');  index = tags.defineIndex('tag',ts.STRING_ARRAY);
-    assert.equal(index.close(),true); assert.equal(tags.close(),true);
-    tags = new ts.XScale('test.db');  index = tags.defineIndex('tag',ts.STRING_ARRAY);
-    assert.equal(index.close(),true); assert.equal(tags.close(),true);
-    tags = new ts.XScale('test.db');  index = tags.defineIndex('tag',ts.STRING_ARRAY);
-    assert.equal(index.close(),true); assert.equal(tags.close(),true);
-    tags = new ts.XScale('test.db');  index = tags.defineIndex('tag',ts.STRING_ARRAY);
+    assert.equal(tags.close(),true); tags = new ts.XScale('test.db');
+    assert.equal(tags.close(),true); tags = new ts.XScale('test.db');
+    assert.equal(tags.close(),true); tags = new ts.XScale('test.db');
   });
   it('record persistence', function() {
     assert.deepEqual(tags.get("test"),obj1)
@@ -117,7 +116,6 @@ describe('ts.XScale', function() {
     assert.equal    ( c.next(),                    true      ); // Any next item, we made sure ther is one.
   });
   it('close database', function() {
-   assert.equal     ( index.close(),               true      ); // Not strictly necessary, but it should work
    assert.equal     ( tags.close(),                true      ); // Close the database and be done with it.
   });
 });
