@@ -69,7 +69,8 @@ public:
 class XTable : public XBase {
 public:
   uint32_t indexFlags;
-  static NAN_METHOD(Find); };
+  static NAN_METHOD(Find);
+  static NAN_METHOD(Each); };
 
 class XScale : public XTable {
  public:
@@ -124,12 +125,13 @@ class XCursor : public XBase {
  public:
   static void Init(v8::Local<v8::Object> exports);
   static Nan::Persistent<v8::Function> constructor;
+  static inline bool move(Local<Object> That, const Nan::FunctionCallbackInfo<v8::Value>& info, uint32_t flags);
+  inline void close(void);
   char *key; int length;
   char *current_key;
  private:
   explicit XCursor(XTable *parent, const char* key, uint32_t extra_flags);
   ~XCursor();
-  inline void close(void);
   static NAN_METHOD(New);
   static NAN_METHOD(Close);
   static NAN_METHOD(Next);
@@ -137,7 +139,6 @@ class XCursor : public XBase {
   static NAN_METHOD(First);
   static NAN_METHOD(Last);
   inline void invalidate(const Nan::FunctionCallbackInfo<v8::Value>& info, Local<Object> This);
-  static inline void move(const Nan::FunctionCallbackInfo<v8::Value>& info, uint32_t flags);
   XTable *parent;
   Local<Object> current;
   ups_cursor_t *cur;

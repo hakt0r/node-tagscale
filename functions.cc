@@ -97,8 +97,33 @@ NAN_METHOD(XTable::Find){
   Local<Function> cons = Local<Function>::New(isolate, XCursor::constructor);
   Local<Context> context = isolate->GetCurrentContext();
   Local<Object> instance = cons->NewInstance(context, argc, argv).ToLocalChecked();
-  if ( !instance->Has(Nan::New("current").ToLocalChecked()) ){ info.GetReturnValue().Set(false); return; }
+  if ( !instance->Has(Nan::New("current").ToLocalChecked()) ){
+    info.GetReturnValue().Set(false); return; }
   info.GetReturnValue().Set(instance); }
+
+NAN_METHOD(XTable::Each){
+  if ( info.Length() != 2 ){ info.GetReturnValue().Set(false); return; }
+  if ( !info[1]->IsFunction() ){
+    printf("XTable::Each Error[argv#2] Not a function.\n"); info.GetReturnValue().Set(false); return; }
+  const int argc = 2; Isolate* isolate = info.GetIsolate();
+  Local<Value> argv[argc] = { info.Holder(), info[0] };
+  Local<Function> cons = Local<Function>::New(isolate, XCursor::constructor);
+  Local<Context> context = isolate->GetCurrentContext();
+  Local<Object> instance = cons->NewInstance(context, argc, argv).ToLocalChecked();
+  if ( !instance->Has(Nan::New("current").ToLocalChecked()) ){
+    info.GetReturnValue().Set(false); return; }
+  // Callback Loop
+  Local<Function> func = Local<Function>::Cast(info[1]);
+  XCursor* c = Nan::ObjectWrap::Unwrap<XCursor>(instance);
+  more:
+  Local<Value> key = instance->Get(Nan::New("key").ToLocalChecked());
+  Local<Value> current = instance->Get(Nan::New("current").ToLocalChecked());
+  Handle<Value> argvcb[] = {key,current,instance};
+  Nan::MaybeLocal<Value> result = func->Call( instance, 3, argvcb );
+  if ( ! result.IsEmpty() ) if ( !result.ToLocalChecked()->BooleanValue() ) goto cleanup;
+  if ( XCursor::move(instance, info, UPS_CURSOR_NEXT ) ) goto more;
+  cleanup:
+  c->close(); info.GetReturnValue().Set(true); }
 
 /*
 ░▓▓░      ███░  ░▓██▒    ░▓███▓░    ▒█▓░     ▓█▒        ▒███████▓░
@@ -124,6 +149,7 @@ void XScale::Init(v8::Local<v8::Object> exports) {
   Nan::SetPrototypeMethod(tpl, "del", Del);
   Nan::SetPrototypeMethod(tpl, "defineIndex", DefineIndex);
   Nan::SetPrototypeMethod(tpl, "find", Find);
+  Nan::SetPrototypeMethod(tpl, "each", Each);
   constructor.Reset(tpl->GetFunction());
   exports->Set(Nan::New("XScale").ToLocalChecked(), tpl->GetFunction()); }
 Nan::Persistent<Function> XScale::constructor;
@@ -173,7 +199,9 @@ NAN_METHOD(XScale::Close) {
 NAN_METHOD(XScale::Set) {
   Isolate *isolate = Isolate::GetCurrent(); v8::HandleScope scope( isolate );
   XScale* that = Nan::ObjectWrap::Unwrap<XScale>(info.Holder());
-  if ( info.Length() != 2 or !info[0]->IsString() ){ info.GetReturnValue().Set(false); return; }
+  if ( info.Length() != 2 or !info[0]->IsString() ){
+    printf("XScale::Set Error: invalid arguments count=%i firstIsString=%i.\n",info.Length(),(int) info[0]->IsString() );
+    info.GetReturnValue().Set(false); return; }
   uint32_t recordId; ups_key_t _key = {0,0,0,0}; ups_record_t _val = {0,0,0};
   const char *key = COPY_TO_CHAR(info[0]);
   uint32_t valLen = -1; const char* val = Json::stringify(info[1],&valLen);
@@ -181,21 +209,29 @@ NAN_METHOD(XScale::Set) {
   _key.data = (void*)key; _key.size = (uint32_t) valLen + 1; _val.data = &recordId; _val.size = sizeof(recordId);
   if ( UPS_SUCCESS == ups_db_find(that->keys, 0, &_key, &_val, 0) ){
     recordId = *(uint32_t *) _val.data; _key.data = &recordId; _key.size = sizeof(recordId);
-    if ( UPS_SUCCESS != ups_db_find(that->data, 0, &_key, &_val, 0 )){ info.GetReturnValue().Set(false); return; }
+    if ( UPS_SUCCESS != ups_db_find(that->data, 0, &_key, &_val, 0 )){
+      printf("XScale::Set Error: Key exists but has no data.\n");
+      info.GetReturnValue().Set(false); return; }
     Local<Object> obj = Json::parse((char *)_val.data)->ToObject();
     // update that->data (data)
     _key.data = &recordId; _key.size = sizeof(recordId); _val.data = (void*)val; _val.size = (uint32_t)strlen(val) + 1;
-    if ( UPS_SUCCESS != ups_db_insert(that->data, 0, &_key, &_val, UPS_OVERWRITE )){ info.GetReturnValue().Set(false); return; }
+    if ( UPS_SUCCESS != ups_db_insert(that->data, 0, &_key, &_val, UPS_OVERWRITE )){
+      printf("XScale::Set Error: Key exists but cannot change data.\n");
+      info.GetReturnValue().Set(false); return; }
     for(int i=0; i<that->indexCount; i++){
       that->index[i]->del( recordId, obj ); }
   } else {
     _key.flags = UPS_KEY_USER_ALLOC; // alloc new that->data (data)
     _key.data = &recordId; _key.size = sizeof(recordId); _val.data = (void*)val; _val.size = (uint32_t)strlen(val) + 1;
-    if ( UPS_SUCCESS != ups_db_insert(that->data, 0, &_key, &_val, 0 )){ info.GetReturnValue().Set(false); return; }
+    if ( UPS_SUCCESS != ups_db_insert(that->data, 0, &_key, &_val, 0 )){
+      printf("XScale::Set Error: Can't insert data.\n");
+      info.GetReturnValue().Set(false); return; }
     // that->keys (key->uid)
     _key.flags = 0;
     _key.data = (void*)key; _key.size = (uint32_t)strlen(key) + 1; _val.data = &recordId; _val.size = sizeof(recordId);
-    if ( UPS_SUCCESS != ups_db_insert(that->keys, 0, &_key, &_val, 0 )){ info.GetReturnValue().Set(false); return; }}
+    if ( UPS_SUCCESS != ups_db_insert(that->keys, 0, &_key, &_val, 0 )){
+      printf("XScale::Set Error: Can't insert key.\n");
+      info.GetReturnValue().Set(false); return; }}
   free((void*)key);
   free((void*)val);
   for(int i=0; i<that->indexCount; i++){
@@ -269,6 +305,7 @@ void XIndex::Init(v8::Local<v8::Object> exports) {
   tpl->InstanceTemplate()->SetInternalFieldCount(1);
   Nan::SetPrototypeMethod(tpl, "close", Close);
   Nan::SetPrototypeMethod(tpl, "find", Find);
+  Nan::SetPrototypeMethod(tpl, "each", Each);
   constructor.Reset(tpl->GetFunction());
   exports->Set(Nan::New("XIndex").ToLocalChecked(), tpl->GetFunction()); }
 Nan::Persistent<Function> XIndex::constructor;
@@ -433,10 +470,19 @@ XCursor::XCursor(XTable *parent, const char* key, uint32_t extra_flags){
   this->queryFlags = parent->queryFlags | extra_flags;
   if ( UPS_SUCCESS != (s= ups_cursor_create(&this->cur, keys, 0, 0 ))){ return; }
   // First Request
-  if ( parent->indexFlags == XTYPE_BOOL ){
+  if ( key == NULL ) {
+    this->queryFlags = 0;
+    _key.data = (void*)NULL; _key.size = 0;
+    if ( UPS_SUCCESS != ( s=ups_cursor_move(this->cur, &_key, &_val, UPS_CURSOR_FIRST ))){
+      // printf("!moved[%s]: [bool]\n", ups_strerror(s));
+      return; }
+    // printf("got: %i %s\n",_key.size,(char*)_key.data);
+    this->key         = NULL;
+    this->current_key = strndup( (char*)_key.data, _key.size - 1 );
+  } else if ( parent->indexFlags == XTYPE_BOOL ){
     this->queryFlags = 0;
     if ( UPS_SUCCESS != ( s=ups_cursor_move(this->cur, &_key, &_val, UPS_CURSOR_NEXT ))){
-      printf("!moved[%s]: [bool]\n", ups_strerror(s));
+      // printf("!moved[%s]: [bool]\n", ups_strerror(s));
       return; }
     this->key         = strndup( (char*)_key.data, _key.size );
     this->current_key = strndup( (char*)_key.data, _key.size );
@@ -456,16 +502,19 @@ XCursor::~XCursor(){ this->close(); }
 
 void XCursor::close(){
   if ( !this->open ) return;
-  ups_cursor_close(this->cur);
-  free((void*)this->key);
-  free(this->current_key);
+  ups_cursor_close( this->cur );
+  if ( this->key != NULL ) free( (void*) this->key );
+  if ( this->current_key != NULL ) free( this->current_key );
   this->open = false; }
 
 NAN_METHOD(XCursor::New){
+  const char *query;
   if ( (!info.IsConstructCall()) || (info.Length() != 2) ){ info.GetReturnValue().Set(false); return; }
   Local<Object> Parent = info[0]->ToObject();
   Local<Object> This = info.This();
-  const char *query = COPY_TO_CHAR(info[1]);
+  if ( info[1]->IsString() ){
+    query = COPY_TO_CHAR(info[1]); }
+  else query = NULL;
   XTable* parent = ObjectWrap::Unwrap<XTable>(Parent);
   XCursor* obj = new XCursor(parent, query, 0);
   if ( obj->open == false ){ delete obj; return; }
@@ -484,16 +533,16 @@ inline void XCursor::invalidate(const Nan::FunctionCallbackInfo<v8::Value>& info
   This->Set(Nan::New("key").ToLocalChecked(),Nan::New(false));
   info.GetReturnValue().Set(false); }
 
-inline void XCursor::move(const Nan::FunctionCallbackInfo<v8::Value>& info, uint32_t flags){
-  XCursor* that = Nan::ObjectWrap::Unwrap<XCursor>(info.Holder());
+inline bool XCursor::move(Local<Object> That, const Nan::FunctionCallbackInfo<v8::Value>& info, uint32_t flags){
+  XCursor* that = Nan::ObjectWrap::Unwrap<XCursor>(That);
   ups_status_t s; uint32_t recordId; ups_key_t _key = {0,0,0,0}; ups_record_t _val = {0,0,0};
-  Local<Object> That = info.Holder();
   if ( !that->open ) {
     printf("not open\n");
-    that->invalidate(info,That); return; }
+    that->invalidate(info,That); return false; }
   again:
   if ( UPS_SUCCESS != (s= ups_cursor_move (that->cur, &_key, &_val, flags | that->queryFlags ))){
-    info.GetReturnValue().Set(false); return; }
+    That->Set(Nan::New("current").ToLocalChecked(),Nan::Undefined());
+    return false; }
   that->current_key = (char*) realloc( (void*)that->current_key, _key.size - 1 );
   strncpy( that->current_key, (char*)_key.data, _key.size - 1 );
   // Get Data
@@ -504,9 +553,9 @@ inline void XCursor::move(const Nan::FunctionCallbackInfo<v8::Value>& info, uint
   that->current = Json::parse((char*)_val.data)->ToObject();
   That->Set(Nan::New("current").ToLocalChecked(),that->current);
   That->Set(Nan::New("key").ToLocalChecked(),Nan::New(that->current_key).ToLocalChecked());
-  info.GetReturnValue().Set(true); }
+  return true; }
 
-NAN_METHOD(XCursor::Next){  move(info, UPS_CURSOR_NEXT ); }
-NAN_METHOD(XCursor::Prev){  move(info, UPS_CURSOR_PREVIOUS ); }
-NAN_METHOD(XCursor::First){ move(info, UPS_CURSOR_FIRST ); }
-NAN_METHOD(XCursor::Last){  move(info, UPS_CURSOR_LAST ); }
+NAN_METHOD(XCursor::Next){  info.GetReturnValue().Set( move(info.Holder(), info, UPS_CURSOR_NEXT )); }
+NAN_METHOD(XCursor::Prev){  info.GetReturnValue().Set( move(info.Holder(), info, UPS_CURSOR_PREVIOUS )); }
+NAN_METHOD(XCursor::First){ info.GetReturnValue().Set( move(info.Holder(), info, UPS_CURSOR_FIRST )); }
+NAN_METHOD(XCursor::Last){  info.GetReturnValue().Set( move(info.Holder(), info, UPS_CURSOR_LAST )); }

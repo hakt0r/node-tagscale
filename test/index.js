@@ -29,7 +29,7 @@ var obj2 = {tag:['hash'],body:'test2',fancy:"other"};
 var obj3 = {tag:['hash','other'],body:'test3'};
 var obj4 = {tag:[],body:'test4',fancy:false};
 
-var COUNT = 1000, i = 0, keys, rk, rks, vals;
+var COUNT = 10000, i = 0, keys, rk, rks, vals;
 keys = new Array(COUNT); vals = new Array(COUNT);
 fnv = function(s) {
   var h = 0, i = 0; s = s.toString();
@@ -114,6 +114,28 @@ describe('ts.XScale', function() {
     assert.notEqual ( c = tags.find('test'),       false     ); // Moment of truth
     assert.notEqual ( c.current,                   undefined ); // Should be defined, i mean - we just inseted it ;)
     assert.equal    ( c.next(),                    true      ); // Any next item, we made sure ther is one.
+    assert.equal    ( c.next(),                    false     ); // End of the list
+    assert.equal    ( c.current,                   undefined ); // Should be undefined, we just tipped ove the edge
+    try { throw new Error('testError') } catch (e) {}
+  });
+  var recsRead = 0;
+  var oneRecRead = false;
+  it('open an iterator (.each)', function() {
+    var result = false;
+    result = tags.each(null, function(key,value,iterator){
+      assert.notEqual ( key, undefined );
+      assert.notEqual ( value, undefined );
+      assert.notEqual ( iterator, undefined );
+      oneRecRead = true; recsRead++;
+      return true;
+    });
+    assert.notEqual ( result, false );
+  });
+  it('read at least one record', function() {
+    assert.notEqual ( oneRecRead, false );
+  });
+  it('read more than one record', function() {
+    assert.equal ( recsRead > 1, true );
   });
   it('close database', function() {
    assert.equal     ( tags.close(),                true      ); // Close the database and be done with it.
