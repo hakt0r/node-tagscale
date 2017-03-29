@@ -359,7 +359,8 @@ inline void XIndex::setBool(uint32_t recordId, Local<Object> Subject, Local<Stri
   ups_status_t s; ups_key_t _key = {0,0,0,0}; ups_record_t _val = {4,&recordId,0};
   _key.data = &recordId; _key.size = sizeof(recordId);
   if ( UPS_SUCCESS != (s= ups_db_insert(this->keys, 0, &_key, &_val, 0 ))){
-    printf("hereE %s\n",ups_strerror(s)); }}
+    //printf("hereE %s\n",ups_strerror(s));
+  }}
 
 inline void XIndex::setDate(uint32_t recordId, Local<Object> Subject, Local<String> IndexKey){
   ups_key_t _key = {0,0,0,0}; ups_record_t _val = {0,0,0};
@@ -494,7 +495,7 @@ XCursor::XCursor(XTable *parent, const char* key, uint32_t extra_flags){
   // Get Data
   recordId = *(uint32_t*) _val.data; _key.data = &recordId; _key.size = sizeof(recordId);
   if ( UPS_SUCCESS != (s= ups_db_find(data,0, &_key, &_val, 0 ))){
-    printf("NEW_CURSee %s\n",ups_strerror(s));
+    // printf("NEW_CURSee %s\n",ups_strerror(s));
     return; }
   this->current = Json::parse((char *)_val.data)->ToObject();
   this->open = true; }
@@ -548,7 +549,7 @@ inline bool XCursor::move(Local<Object> That, const Nan::FunctionCallbackInfo<v8
   // Get Data
   recordId = *(uint32_t *) _val.data; _key.data = &recordId; _key.size = sizeof(recordId);
   if ( UPS_SUCCESS != (s= ups_db_find(that->data, 0, &_key, &_val, 0 ))){
-    printf("next::again[%s]: %s\n", that->key,ups_strerror(s));
+    // printf("next::again[%s]: %s\n", that->key,ups_strerror(s));
     goto again; }
   that->current = Json::parse((char*)_val.data)->ToObject();
   That->Set(Nan::New("current").ToLocalChecked(),that->current);

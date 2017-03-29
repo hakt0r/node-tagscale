@@ -35,3 +35,5 @@ exports.TagScale = class TagScale extends exports.XScale {
     super(path);
     this.defineIndex('tag',3);
 }}
+
+process.on( 'exit', function(){ exports.closeAll() } )
