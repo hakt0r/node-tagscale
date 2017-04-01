@@ -16,5 +16,5 @@
   "repository": { "type": "git", "url": "https://github.com/haktor/node-tagscale" },
   "keywords": [ "upscaledb", "key", "value", "db", "secondary", "index" ],
   "author": "Sebastian Glaser <anx@ulzq.de>",
-  "license": "GPLv3",
+  "license": "GPL-3.0",
   "bugs": { "url": "https://github.com/haktor/node-tagscale/issues" }}
