@@ -162,7 +162,8 @@ XScale::XScale(const char* path){
     {UPS_PARAM_CUSTOM_COMPARE_NAME, (uint64_t)"string"}, {0,0}};
   this->queryFlags = UPS_FIND_NEAR_MATCH | UPS_SKIP_DUPLICATES;
   int result = ups_env_open(&this->env, path, 0, NULL );
-  if ( UPS_FILE_NOT_FOUND == result ) { if( UPS_SUCCESS != ups_env_create (&this->env, path, 0, 0664, 0 )) return; }
+  if      ( UPS_FILE_NOT_FOUND == result ) { if( UPS_SUCCESS != ups_env_create (&this->env, path, 0, 0664, 0 )) return; }
+  else if ( UPS_NEED_RECOVERY  == result ) { if( UPS_SUCCESS != ups_env_open   (&this->env, path, UPS_AUTO_RECOVERY | UPS_ENABLE_TRANSACTIONS, 0 )) return; }
   else if ( UPS_SUCCESS != result ) return;
   if( UPS_SUCCESS != ups_env_open_db   ( this->env, &this->keys, DBNAME_KEYS, 0,0 ))
   if( UPS_SUCCESS != ups_env_create_db ( this->env, &this->keys, DBNAME_KEYS, 0, &key_params[0]) ) return;
@@ -193,12 +194,14 @@ NAN_METHOD(XScale::New){
 NAN_METHOD(XScale::Close) {
   Local<Object> node_that = info.Holder();
   XScale* that = Nan::ObjectWrap::Unwrap<XScale>(node_that);
+  if ( !that->open ) { return; }
   that->close();
   info.GetReturnValue().Set(true); }
 
 NAN_METHOD(XScale::Set) {
   Isolate *isolate = Isolate::GetCurrent(); v8::HandleScope scope( isolate );
   XScale* that = Nan::ObjectWrap::Unwrap<XScale>(info.Holder());
+  if ( !that->open ) { return; }
   if ( info.Length() != 2 or !info[0]->IsString() ){
     printf("XScale::Set Error: invalid arguments count=%i firstIsString=%i.\n",info.Length(),(int) info[0]->IsString() );
     info.GetReturnValue().Set(false); return; }
@@ -240,6 +243,7 @@ NAN_METHOD(XScale::Set) {
 
 NAN_METHOD(XScale::Get) {
   XScale* t = Nan::ObjectWrap::Unwrap<XScale>(info.Holder());
+  if ( !t->open ) { return; }
   if ( info.Length() != 1 ){ info.GetReturnValue().Set(false); return; }
   ups_status_t STATUS; uint32_t recordId; ups_key_t _key = {0,0,0,0}; ups_record_t _val = {0,0,0};
   String::Utf8Value keyAsUtf8(info[0]); const char *key = *keyAsUtf8;
@@ -258,6 +262,7 @@ NAN_METHOD(XScale::Get) {
 
 NAN_METHOD(XScale::Del) {
   XScale* that = Nan::ObjectWrap::Unwrap<XScale>(info.Holder());
+  if ( !that->open ) { return; }
   if ( info.Length() != 1 ){ info.GetReturnValue().Set(false); return; }
   uint32_t recordId; ups_key_t _key = {0,0,0,0}; ups_record_t _val = {0,0,0};
   Isolate *isolate = Isolate::GetCurrent(); v8::HandleScope scope( isolate );
@@ -274,6 +279,8 @@ NAN_METHOD(XScale::Del) {
   info.GetReturnValue().Set(true); }
 
 NAN_METHOD(XScale::DefineIndex) {
+  XScale* that = Nan::ObjectWrap::Unwrap<XScale>(info.Holder());
+  if ( !that->open ) { return; }
   if ( info.Length() != 2 || !info[0]->IsString() ){ info.GetReturnValue().Set(false); return; }
   Isolate* isolate = info.GetIsolate();
   const int argc = 3;
@@ -281,7 +288,6 @@ NAN_METHOD(XScale::DefineIndex) {
   Local<Function> cons = Local<Function>::New(isolate, XIndex::constructor);
   Local<Context> context = isolate->GetCurrentContext();
   Local<Object> instance = cons->NewInstance(context, argc, argv).ToLocalChecked();
-  XScale* that  = Nan::ObjectWrap::Unwrap<XScale>(info.Holder());
   XIndex* index = Nan::ObjectWrap::Unwrap<XIndex>(instance);
   that->index[that->indexCount++] = index;
   info.GetReturnValue().Set(instance); }
