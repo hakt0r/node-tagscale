@@ -161,9 +161,9 @@ XScale::XScale(const char* path){
     {UPS_PARAM_KEY_TYPE, UPS_TYPE_CUSTOM}, {UPS_PARAM_RECORD_SIZE, sizeof(uint32_t)},
     {UPS_PARAM_CUSTOM_COMPARE_NAME, (uint64_t)"string"}, {0,0}};
   this->queryFlags = UPS_FIND_NEAR_MATCH | UPS_SKIP_DUPLICATES;
-  bool ok = false;
-  if ( access(path,F_OK) == 0 ) ok = ( UPS_SUCCESS == ups_env_open(&this->env, path, 0, NULL ));
-  if ( !ok ) if( UPS_SUCCESS != ups_env_create    (&this->env, path, 0, 0664, 0 )) return;
+  int result = ups_env_open(&this->env, path, 0, NULL );
+  if ( UPS_FILE_NOT_FOUND == result ) { if( UPS_SUCCESS != ups_env_create (&this->env, path, 0, 0664, 0 )) return; }
+  else if ( UPS_SUCCESS != result ) return;
   if( UPS_SUCCESS != ups_env_open_db   ( this->env, &this->keys, DBNAME_KEYS, 0,0 ))
   if( UPS_SUCCESS != ups_env_create_db ( this->env, &this->keys, DBNAME_KEYS, 0, &key_params[0]) ) return;
   if( UPS_SUCCESS != ups_env_open_db   ( this->env, &this->data, DBNAME_UID,  0,0))
