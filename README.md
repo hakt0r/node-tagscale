@@ -116,27 +116,18 @@ $ npm i
 
 All subsequent builds *only* need `npm run build`
 
-### Dependencies
+### Dependencies (for Debian)
 
-  - node**JS** 4+
-  - node-gyp
-  - c/c++ compiler suite
+```ShellSession
+# Don't forget
+$ sudo apt install build-essential nodejs npm node-gyp
 
-Compiles upscaledb ad-hoc if no library is found on the system or the maintainer repository;
-  the Author names the following (debian) packages as dependencies.
+# Required dependencies
+$ sudo apt install libgoogle-perftools-dev libboost-filesystem-dev libboost-thread-dev libboost-asio-dev libboost-dev
 
-  - libgoogle-perftools-dev
-  - libboost-filesystem-dev
-  - libboost-thread-dev
-  - libboost-dev
-  - libuv ( >1.0.0 - from debian testing seems to suffice, in my experience )
-
-### Optionals
-  - ccache (optional)
-  - dietlibc (optional)
-  - libdb-dev
-  - protobuf-compiler
-  - libprotobuf-dev
+# Optionals
+$ sudo apt install ccache dietlibc libdb-dev protobuf-compiler libprotobuf-dev
+```
 
 ## Testing
 
