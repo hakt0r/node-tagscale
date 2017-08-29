@@ -75,7 +75,7 @@ inline const char* Json::stringify(Local<Value> value, uint32_t *valLen){
 inline Local<Value> Json::parse (const char* data){
   Isolate *isolate = Isolate::GetCurrent();
   Local<String> json = String::NewFromUtf8( isolate, (char *) data);
-  return JSON::Parse(json); }
+  return v8::JSON::Parse(json); }
 
 Nan::Persistent<Object>   Json::_JSON_;
 Nan::Persistent<Function> Json::_STRINGIFY_;
@@ -257,7 +257,7 @@ NAN_METHOD(XScale::Get) {
     info.GetReturnValue().Set(false); return; }
   Isolate *isolate = Isolate::GetCurrent(); v8::HandleScope scope( isolate );
   Local<String> json = String::NewFromUtf8(isolate,(char *)_val.data);
-  Local<Value> value = JSON::Parse(json);
+  Local<Value> value = v8::JSON::Parse(json);
   info.GetReturnValue().Set(value); }
 
 NAN_METHOD(XScale::Del) {
@@ -272,7 +272,7 @@ NAN_METHOD(XScale::Del) {
   if ( UPS_SUCCESS !=  ups_db_erase(that->keys, 0, &_key, 0 )){ info.GetReturnValue().Set(false); return; }
   recordId = *(uint32_t *) _val.data; _key.data = &recordId; _key.size = sizeof(recordId);
   if ( UPS_SUCCESS !=  ups_db_find(that->data, 0, &_key, &_val, 0 )){ info.GetReturnValue().Set(false); return; }
-  Local<Object> obj = JSON::Parse(String::NewFromUtf8(isolate,(char *)_val.data))->ToObject();
+  Local<Object> obj = v8::JSON::Parse(String::NewFromUtf8(isolate,(char *)_val.data))->ToObject();
   for(int i=0; i<that->indexCount; i++){ that->index[i]->del( recordId, obj ); }
   _key.data = &recordId; _key.size = sizeof(recordId);
   if ( UPS_SUCCESS !=  ups_db_erase(that->data, 0, &_key, 0 )){ info.GetReturnValue().Set(false); return; }
