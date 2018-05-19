@@ -25,6 +25,8 @@
 #define DBNAME_UID  2
 #define DBNAME_MORE 3
 
+Nan::JSON NanJSON;
+
 static inline char *COPY_TO_CHAR(Handle<Value> val) {
   String::Utf8Value utf8(val->ToString());
   return strndup( *utf8, utf8.length() + 1); }
@@ -75,7 +77,7 @@ inline const char* Json::stringify(Local<Value> value, uint32_t *valLen){
 inline Local<Value> Json::parse (const char* data){
   Isolate *isolate = Isolate::GetCurrent();
   Local<String> json = String::NewFromUtf8( isolate, (char *) data);
-  return v8::JSON::Parse(json); }
+  return NanJSON.Parse(json).ToLocalChecked(); }
 
 Nan::Persistent<Object>   Json::_JSON_;
 Nan::Persistent<Function> Json::_STRINGIFY_;
@@ -161,9 +163,10 @@ XScale::XScale(const char* path){
     {UPS_PARAM_KEY_TYPE, UPS_TYPE_CUSTOM}, {UPS_PARAM_RECORD_SIZE, sizeof(uint32_t)},
     {UPS_PARAM_CUSTOM_COMPARE_NAME, (uint64_t)"string"}, {0,0}};
   this->queryFlags = UPS_FIND_NEAR_MATCH | UPS_SKIP_DUPLICATES;
-  int result = ups_env_open(&this->env, path, 0, NULL );
-  if      ( UPS_FILE_NOT_FOUND == result ) { if( UPS_SUCCESS != ups_env_create (&this->env, path, 0, 0664, 0 )) return; }
-  else if ( UPS_NEED_RECOVERY  == result ) { if( UPS_SUCCESS != ups_env_open   (&this->env, path, UPS_AUTO_RECOVERY | UPS_ENABLE_TRANSACTIONS, 0 )) return; }
+  uint32_t flags = UPS_AUTO_RECOVERY;
+  int                             result =                      ups_env_open   (&this->env, path, flags, NULL );
+  if      ( UPS_FILE_NOT_FOUND == result ) { if( UPS_SUCCESS != ups_env_create (&this->env, path, flags, 0664, 0 )) return; }
+  else if ( UPS_NEED_RECOVERY  == result ) { if( UPS_SUCCESS != ups_env_open   (&this->env, path, flags, 0       )) return; }
   else if ( UPS_SUCCESS != result ) return;
   if( UPS_SUCCESS != ups_env_open_db   ( this->env, &this->keys, DBNAME_KEYS, 0,0 ))
   if( UPS_SUCCESS != ups_env_create_db ( this->env, &this->keys, DBNAME_KEYS, 0, &key_params[0]) ) return;
@@ -257,7 +260,7 @@ NAN_METHOD(XScale::Get) {
     info.GetReturnValue().Set(false); return; }
   Isolate *isolate = Isolate::GetCurrent(); v8::HandleScope scope( isolate );
   Local<String> json = String::NewFromUtf8(isolate,(char *)_val.data);
-  Local<Value> value = v8::JSON::Parse(json);
+  Local<Value> value = NanJSON.Parse(json).ToLocalChecked();
   info.GetReturnValue().Set(value); }
 
 NAN_METHOD(XScale::Del) {
@@ -272,7 +275,7 @@ NAN_METHOD(XScale::Del) {
   if ( UPS_SUCCESS !=  ups_db_erase(that->keys, 0, &_key, 0 )){ info.GetReturnValue().Set(false); return; }
   recordId = *(uint32_t *) _val.data; _key.data = &recordId; _key.size = sizeof(recordId);
   if ( UPS_SUCCESS !=  ups_db_find(that->data, 0, &_key, &_val, 0 )){ info.GetReturnValue().Set(false); return; }
-  Local<Object> obj = v8::JSON::Parse(String::NewFromUtf8(isolate,(char *)_val.data))->ToObject();
+  Local<Object> obj = NanJSON.Parse(String::NewFromUtf8(isolate,(char *)_val.data)).ToLocalChecked()->ToObject();
   for(int i=0; i<that->indexCount; i++){ that->index[i]->del( recordId, obj ); }
   _key.data = &recordId; _key.size = sizeof(recordId);
   if ( UPS_SUCCESS !=  ups_db_erase(that->data, 0, &_key, 0 )){ info.GetReturnValue().Set(false); return; }

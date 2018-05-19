@@ -1,20 +1,45 @@
-{ "main": "index.js",
+{
+  "main": "index.js",
   "scripts": {
     "test": "mocha",
     "configure": "nodejs configure.js",
     "build": "node-gyp build",
     "postbuild": "nodejs postbuild.js",
     "preinstall": "nodejs preinstall.js",
-    "install": "test -f build/Release/NativeExtension.node && exit 0; npm run configure; npm run build" },
-  "devDependencies": { "mocha": "^2.2.5","nan": "^2.0.5","node-gyp": "^1.0.3" },
-  "dependencies": { "bindings": "^1.2.1" },
+    "install": "test -f build/Release/NativeExtension.node && exit 0; npm run configure; npm run build"
+  },
+  "devDependencies": {
+    "hoek": "^5.0.3",
+    "mocha": "^5.2.0",
+    "nan": "^2.10.0",
+    "node-gyp": "^3.7.0"
+  },
+  "dependencies": {
+    "bindings": "^1.2.1",
+    "graceful-fs": "^4.1.11"
+  },
   "gypfile": true,
   "name": "tagscale",
   "description": "nodeJS key-value-store with secondary indices (tags) based on upscaledb",
   "version": "0.1.0",
-  "directories": { "test": "test" },
-  "repository": { "type": "git", "url": "https://github.com/haktor/node-tagscale" },
-  "keywords": [ "upscaledb", "key", "value", "db", "secondary", "index" ],
+  "directories": {
+    "test": "test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/haktor/node-tagscale"
+  },
+  "keywords": [
+    "upscaledb",
+    "key",
+    "value",
+    "db",
+    "secondary",
+    "index"
+  ],
   "author": "Sebastian Glaser <anx@ulzq.de>",
   "license": "GPL-3.0",
-  "bugs": { "url": "https://github.com/haktor/node-tagscale/issues" }}
+  "bugs": {
+    "url": "https://github.com/haktor/node-tagscale/issues"
+  }
+}
