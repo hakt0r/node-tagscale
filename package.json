@@ -15,8 +15,7 @@
     "node-gyp": "^3.7.0"
   },
   "dependencies": {
-    "bindings": "^1.2.1",
-    "graceful-fs": "^4.1.11"
+    "bindings": "^1.2.1"
   },
   "gypfile": true,
   "name": "tagscale",
