@@ -28,14 +28,14 @@
 Nan::JSON NanJSON;
 
 static inline char *COPY_TO_CHAR(Handle<Value> val) {
-  String::Utf8Value utf8(val->ToString());
+  Nan::Utf8String utf8(val->ToString(Nan::GetCurrentContext()).FromMaybe(v8::Local<v8::String>()));
   return strndup( *utf8, utf8.length() + 1); }
 
 static int string_compare (
   ups_db_t *db, const uint8_t *lhs, uint32_t lhs_length, const uint8_t *rhs, uint32_t rhs_length
 ) {
   int s = strncmp((const char *)lhs, (const char *)rhs, lhs_length < rhs_length ? lhs_length : rhs_length);
-  if (s < 0) return -1; if (s > 0) return +1; return 0; }
+  if (s < 0) {return -1;} if (s > 0) {return +1;} return 0; }
 
 void tagscale_init(void){ ups_register_compare("string",string_compare); }
 
@@ -59,7 +59,8 @@ NAN_METHOD(upb_closeAll){ tagscale_closeAll(); info.GetReturnValue().Set(true); 
 
 void Json::Init(){
   Isolate *isolate = Isolate::GetCurrent();
-  Local<Object> json = isolate->GetCurrentContext()->Global()->Get(String::NewFromUtf8(isolate,"JSON"))->ToObject();
+  Local<Object> json = isolate->GetCurrentContext()->Global()->Get(String::NewFromUtf8(isolate,"JSON")).As<Object>();
+
   Local<Function> stringify = json->Get(String::NewFromUtf8(isolate,"stringify")).As<Function>();
   Json::_JSON_.Reset(json);
   Json::_STRINGIFY_.Reset(stringify); }
@@ -70,7 +71,7 @@ inline const char* Json::stringify(Local<Value> value, uint32_t *valLen){
   Local<Function> stringify = Local<Function>::New(isolate,Json::_STRINGIFY_);;
   Local<Value> _stringify_args[] = { value };
   Local<Value> _stringify_result = stringify->Call(json, 1, _stringify_args);
-  String::Utf8Value const _stringify_val(_stringify_result);
+  Nan::Utf8String const _stringify_val(_stringify_result);
   *valLen = strlen(*_stringify_val);
   return strndup(*_stringify_val,*valLen); }
 
@@ -122,7 +123,10 @@ NAN_METHOD(XTable::Each){
   Local<Value> current = instance->Get(Nan::New("current").ToLocalChecked());
   Handle<Value> argvcb[] = {key,current,instance};
   Nan::MaybeLocal<Value> result = func->Call( instance, 3, argvcb );
-  if ( ! result.IsEmpty() ) if ( !result.ToLocalChecked()->BooleanValue() ) goto cleanup;
+  /// Nan::Maybe<bool> do_clean = Nan::To<bool>(result.ToLocalChecked());
+  if ( ! result.IsEmpty() ) {
+    Local<Boolean> boolResult = Nan::To<Boolean>(result.ToLocalChecked()).ToLocalChecked();
+    if ( ! boolResult->Value() ) goto cleanup; }
   if ( XCursor::move(instance, info, UPS_CURSOR_NEXT ) ) goto more;
   cleanup:
   c->close(); info.GetReturnValue().Set(true); }
@@ -191,7 +195,7 @@ XScale::~XScale(){
 
 NAN_METHOD(XScale::New){
   if ( (!info.IsConstructCall()) || (info.Length() != 1) ){ info.GetReturnValue().Set(false); return; }
-  String::Utf8Value pathAsUtf8(info[0]); const char * path = *pathAsUtf8;
+  Nan::Utf8String pathAsUtf8(info[0]); const char * path = *pathAsUtf8;
   XScale* obj = new XScale(path);
   obj->Wrap(info.This());
   // obj->persistent().ClearWeak();
@@ -221,7 +225,7 @@ NAN_METHOD(XScale::Set) {
     if ( UPS_SUCCESS != ups_db_find(that->data, 0, &_key, &_val, 0 )){
       printf("XScale::Set Error: Key exists but has no data.\n");
       info.GetReturnValue().Set(false); return; }
-    Local<Object> obj = Json::parse((char *)_val.data)->ToObject();
+    Local<Object> obj = Json::parse((char *)_val.data).As<Object>();
     // update that->data (data)
     _key.data = &recordId; _key.size = sizeof(recordId); _val.data = (void*)val; _val.size = (uint32_t)strlen(val) + 1;
     if ( UPS_SUCCESS != ups_db_insert(that->data, 0, &_key, &_val, UPS_OVERWRITE )){
@@ -244,7 +248,7 @@ NAN_METHOD(XScale::Set) {
   free((void*)key);
   free((void*)val);
   for(int i=0; i<that->indexCount; i++){
-    that->index[i]->set( recordId, info[1]->ToObject()); }
+    that->index[i]->set( recordId, info[1].As<Object>()); }
   info.GetReturnValue().Set(Nan::New<Number>(recordId)); }
 
 NAN_METHOD(XScale::Get) {
@@ -252,7 +256,7 @@ NAN_METHOD(XScale::Get) {
   if ( !t->open ) { return; }
   if ( info.Length() != 1 ){ info.GetReturnValue().Set(false); return; }
   ups_status_t STATUS; uint32_t recordId; ups_key_t _key = {0,0,0,0}; ups_record_t _val = {0,0,0};
-  String::Utf8Value keyAsUtf8(info[0]); const char *key = *keyAsUtf8;
+  Nan::Utf8String keyAsUtf8(info[0]); const char *key = *keyAsUtf8;
   _key.data = (void*)key; _key.size = (uint32_t) strlen(key) + 1;
   if ( UPS_SUCCESS != ( STATUS = ups_db_find(t->keys, 0, &_key, &_val, 0 ))){
     // printf("XScale get %s: %s\n",key,ups_strerror(STATUS));
@@ -272,13 +276,13 @@ NAN_METHOD(XScale::Del) {
   if ( info.Length() != 1 ){ info.GetReturnValue().Set(false); return; }
   uint32_t recordId; ups_key_t _key = {0,0,0,0}; ups_record_t _val = {0,0,0};
   Isolate *isolate = Isolate::GetCurrent(); v8::HandleScope scope( isolate );
-  String::Utf8Value keyAsUtf8(info[0]); const char *key = *keyAsUtf8;
+  Nan::Utf8String keyAsUtf8(info[0]); const char *key = *keyAsUtf8;
   _key.data = (void*)key; _key.size = (uint32_t)strlen(key) + 1;
   if ( UPS_SUCCESS !=  ups_db_find(that->keys, 0, &_key, &_val, 0 )){ info.GetReturnValue().Set(false); return; }
   if ( UPS_SUCCESS !=  ups_db_erase(that->keys, 0, &_key, 0 )){ info.GetReturnValue().Set(false); return; }
   recordId = *(uint32_t *) _val.data; _key.data = &recordId; _key.size = sizeof(recordId);
   if ( UPS_SUCCESS !=  ups_db_find(that->data, 0, &_key, &_val, 0 )){ info.GetReturnValue().Set(false); return; }
-  Local<Object> obj = NanJSON.Parse(String::NewFromUtf8(isolate,(char *)_val.data)).ToLocalChecked()->ToObject();
+  Local<Object> obj = NanJSON.Parse(String::NewFromUtf8(isolate,(char *)_val.data)).ToLocalChecked().As<Object>();
   for(int i=0; i<that->indexCount; i++){ that->index[i]->del( recordId, obj ); }
   _key.data = &recordId; _key.size = sizeof(recordId);
   if ( UPS_SUCCESS !=  ups_db_erase(that->data, 0, &_key, 0 )){ info.GetReturnValue().Set(false); return; }
@@ -352,9 +356,9 @@ inline void XIndex::close(void){
 NAN_METHOD(XIndex::New){
   if ( (!info.IsConstructCall()) || (info.Length() != 3) ){ info.GetReturnValue().Set(false); return; }
   Local<Object> This = info.This();
-  Local<Object> Parent = info[0]->ToObject();
-  Local<String> IndexKey = info[1]->ToString();
-  uint32_t flags = info[2]->Uint32Value();
+  Local<Object> Parent = info[0].As<Object>();
+  Local<String> IndexKey = info[1]->ToString(Nan::GetCurrentContext()).FromMaybe(v8::Local<v8::String>());
+  uint32_t flags = info[2]->ToUint32(Nan::GetCurrentContext()).ToLocalChecked()->Value();
   XScale* parent = ObjectWrap::Unwrap<XScale>(Parent);
   const char *name = COPY_TO_CHAR(IndexKey);
   XIndex* obj = new XIndex(parent,name,flags,This);
@@ -384,7 +388,7 @@ inline void XIndex::setDate(uint32_t recordId, Local<Object> Subject, Local<Stri
 inline void XIndex::setString(uint32_t recordId, Local<Object> Subject, Local<String> IndexKey){
   ups_status_t s; ups_key_t _key = {0,0,0,0}; ups_record_t _val = {0,0,0};
   _val.data = &recordId; _val.size = sizeof(recordId);
-  const char *key = COPY_TO_CHAR(Subject->Get(IndexKey)->ToString());
+  const char *key = COPY_TO_CHAR(Subject->Get(IndexKey)->ToString(Nan::GetCurrentContext()).FromMaybe(v8::Local<v8::String>()));
   _key.data = (void*)key; _key.size = (uint32_t)strlen(key) + 1;
   if ( UPS_SUCCESS != (s= ups_db_insert(this->keys, 0, &_key, &_val, UPS_DUPLICATE ))) {
     printf("%s %s\n",__FUNCTION__,ups_strerror(s));
@@ -509,7 +513,7 @@ XCursor::XCursor(XTable *parent, const char* key, uint32_t extra_flags){
   if ( UPS_SUCCESS != (s= ups_db_find(data,0, &_key, &_val, 0 ))){
     // printf("NEW_CURSee %s\n",ups_strerror(s));
     return; }
-  this->current = Json::parse((char *)_val.data)->ToObject();
+  this->current = Json::parse((char *)_val.data).As<Object>();
   this->open = true; }
 XCursor::~XCursor(){ this->close(); }
 
@@ -523,7 +527,7 @@ void XCursor::close(){
 NAN_METHOD(XCursor::New){
   const char *query;
   if ( (!info.IsConstructCall()) || (info.Length() != 2) ){ info.GetReturnValue().Set(false); return; }
-  Local<Object> Parent = info[0]->ToObject();
+  Local<Object> Parent = info[0].As<Object>();
   Local<Object> This = info.This();
   if ( info[1]->IsString() ){
     query = COPY_TO_CHAR(info[1]); }
@@ -563,7 +567,7 @@ inline bool XCursor::move(Local<Object> That, const Nan::FunctionCallbackInfo<v8
   if ( UPS_SUCCESS != (s= ups_db_find(that->data, 0, &_key, &_val, 0 ))){
     // printf("next::again[%s]: %s\n", that->key,ups_strerror(s));
     goto again; }
-  that->current = Json::parse((char*)_val.data)->ToObject();
+  that->current = Json::parse((char*)_val.data).As<Object>();
   That->Set(Nan::New("current").ToLocalChecked(),that->current);
   That->Set(Nan::New("key").ToLocalChecked(),Nan::New(that->current_key).ToLocalChecked());
   return true; }
