@@ -164,7 +164,10 @@ XScale::XScale(const char* path){
     {UPS_PARAM_CUSTOM_COMPARE_NAME, (uint64_t)"string"}, {0,0}};
   this->queryFlags = UPS_FIND_NEAR_MATCH | UPS_SKIP_DUPLICATES;
   uint32_t flags = UPS_AUTO_RECOVERY;
-  int                             result =                      ups_env_open   (&this->env, path, flags, NULL );
+  int result = UPS_FILE_NOT_FOUND;
+  struct stat buffer;
+  if ( 0 == stat(path,&buffer) ){
+                                  result =                      ups_env_open   (&this->env, path, flags, NULL ); }
   if      ( UPS_FILE_NOT_FOUND == result ) { if( UPS_SUCCESS != ups_env_create (&this->env, path, flags, 0664, 0 )) return; }
   else if ( UPS_NEED_RECOVERY  == result ) { if( UPS_SUCCESS != ups_env_open   (&this->env, path, flags, 0       )) return; }
   else if ( UPS_SUCCESS != result ) return;
