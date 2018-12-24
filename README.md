@@ -138,7 +138,7 @@ foo@bar:~/node-tagscale$ npm i
 
 All subsequent builds *only* need `npm run build`
 
-### Dependencies (for Debian)
+## Dependencies (for Debian)
 
 ``` console
 # Don't forget
