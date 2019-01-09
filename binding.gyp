@@ -1,9 +1,20 @@
 { "targets": [{
   "target_name": "NativeExtension",
+      "cflags!": [ "-fno-exceptions" ],
+      "cflags_cc!": [ "-fno-exceptions" ],
+      "xcode_settings": { "GCC_ENABLE_CPP_EXCEPTIONS": "YES",
+        "CLANG_CXX_LIBRARY": "libc++",
+        "MACOSX_DEPLOYMENT_TARGET": "10.7",
+      },
+      "msvs_settings": {
+        "VCCLCompilerTool": { "ExceptionHandling": 1 },
+      },
   "sources": [ "NativeExtension.cc", "functions.cc" ],
   "arflags": [ "cr" ],
   "cflags_cc": [ "-O3", "-static", "-fPIC","-rdynamic","-Wl,-whole-archive" ],
   "cxxflags_cc": [ "-static", "-fPIC","-rdynamic","-Wl,-whole-archive" ],
+  "cflags!": [ "-fno-exceptions" ],
+  "cflags_cc!": [ "-fno-exceptions" ],
   "libraries": [
     "-L <!(dirname $(find /usr/lib -name libz.a | head -n1))",
     "-lboost_thread", "-lpthread", "-lboost_filesystem", "-lz", "-ldl",
@@ -14,5 +25,6 @@
     "-L ../upscaledb/3rdparty/liblzf/liblzf.la",
     "-L ../upscaledb/3rdparty/for/libfor.la",
     "../upscaledb/dest/lib/libupscaledb.a" ],
-  "include_dirs" : [ 'upscaledb/include', "<!(node -e \"require('nan')\")" ]
+  "include_dirs" : [ 'upscaledb/include', "<!@(node -p \"require('node-addon-api').include\")" ],
+  "defines": [ "NAPI_DISABLE_CPP_EXCEPTIONS" ]
 }]}

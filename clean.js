@@ -23,24 +23,17 @@ var fs = require('fs');
 var cp = require('child_process');
 var path = require('path');
 
-var MODS='', cpuinfo = fs.readFileSync('/proc/cpuinfo').toString();
-if( cpuinfo.match(/sse2/) ){MODS+='-sse2';}
-if( cpuinfo.match(/sse4/) ){MODS+='-sse4';}
-
-var package = JSON.parse(fs.readFileSync('package.json'));
-var release_filename=`node-tagscale.${process.platform}.${process.arch}${MODS}.${package.version}.tar.bz2`;
-var release_url=`https://anx.ulzq.de/release/${release_filename}`;
+// var MODS='', cpuinfo = fs.readFileSync('/proc/cpuinfo').toString();
+// if( cpuinfo.match(/sse2/) ){MODS+='-sse2';}
+// if( cpuinfo.match(/sse4/) ){MODS+='-sse4';}
 
 cp.spawn( "sh",['-c',`
 [ -f build/Release/NativeExtension.node ] || exit 1
-strip build/Release/NativeExtension.node
-tar jcvf ${release_filename} build/Release/NativeExtension.node
-[ "$USER" = "anx" -a -n "$RELEASE" ] && scp ${release_filename} anx@ulzq.de:www/release/
-[ -f KEEP_FILES ] && exit 0
+npm t                                     || exit 1
 [ -d node_modules/mocha ] || npm i mocha
-npm t || exit 1
+rm -rf test.db*
+[ -f KEEP_FILES ] && exit 0
 rm -rf build
-tar xjvf ${release_filename}
 rm -rf upscaledb
 rm -rf *.tar.bz2 .git include
 npm remove node-gyp mocha nan

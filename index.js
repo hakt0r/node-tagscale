@@ -30,6 +30,12 @@ exports.DATE         = 8
 exports.STRING       = 16
 exports.STRING_ARRAY = 32
 
+exports.XScale.create = function(path){
+  const fs = require('fs');
+  if ( fs.existsSync(path) ) fs.unlinkSync(path);
+  return new exports.XScale(path);
+}
+
 exports.TagScale = class TagScale extends exports.XScale {
   constructor(path){
     super(path);

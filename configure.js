@@ -28,26 +28,21 @@ var CC  = process.env.CC  || 'gcc';
 var CXX = process.env.CXX || 'g++';
 var CPP = process.env.CPP || 'cpp';
 
-var MODS='', cpuinfo = fs.readFileSync('/proc/cpuinfo').toString();
-if( cpuinfo.match(/sse2/) ){MODS+='-sse2';}
-if( cpuinfo.match(/sse4/) ){MODS+='-sse4';}
-
-var package = JSON.parse(fs.readFileSync('package.json'));
-var release_filename=`node-tagscale.${process.platform}.${process.arch}${MODS}.${package.version}.tar.bz2`;
-var release_url=`https://anx.ulzq.de/release/${release_filename}`;
-
 cp.spawn( "sh",['-c',`
+touch KEEP_FILES
 ccache=$(which ccache 2>/dev/null);
 diet=$(which diet 2>/dev/null);
-export CC="$ccache  $diet ${CC}  -fPIC";
-export LD="$ccache  $diet ${LD}  -fPIC";
-export CXX="$ccache $diet ${CXX} -fPIC";
-export CPP="$ccache $diet ${CPP}";
-export ARFLAGS=cr;
+if ! echo "$CC" | grep -q "$ccache"
+then
+  export CC="$ccache  $diet ${CC}  -fPIC";
+  export LD="$ccache  $diet ${LD}  -fPIC";
+  export CXX="$ccache $diet ${CXX} -fPIC";
+  export CPP="$ccache $diet ${CPP}";
+  export ARFLAGS=cr;
+fi
 proc="-j$(nproc||echo 2)";
 
-[ -d node_modules/nan ] || npm i nan mocha node-gyp
-
+[ -d node_modules/mocha ] || npm i
 [ -f ./dest/lib/libupscaledb.a ] && node-gyp configure && exit 0;
 
 [ -d ./upscaledb ] ||
@@ -68,7 +63,7 @@ cd upscaledb;
     make --trace -C src      $proc; }
 
   [ -f ./dest/lib/libupscaledb.a  ] ||
-    make --trace -C src  install $proc;
+    make --trace -C src install $proc;
 
 cd ..;
 node-gyp configure;

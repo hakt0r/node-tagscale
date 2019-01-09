@@ -29,19 +29,3 @@ var https = require('https');
 var MODS='', cpuinfo = fs.readFileSync('/proc/cpuinfo').toString();
 if( cpuinfo.match(/sse2/) ){MODS+='-sse2';}
 if( cpuinfo.match(/sse4/) ){MODS+='-sse4';}
-
-var package = JSON.parse(fs.readFileSync('package.json'));
-var release_filename=`node-tagscale.${process.platform}.${process.arch}${MODS}.${package.version}.tar.bz2`;
-var release_url=`https://anx.ulzq.de/release/${release_filename}`;
-
-var download = function(url, dest, cb) {
-  var file = fs.createWriteStream(dest);
-  var request = https.get(url, function(response) {
-    response.pipe(file);
-    console.log(`Unpacking ${release_filename}`);
-    file.on('finish', function() { file.close(cb); });
-}); }
-
-download(release_url, release_filename, function(){
-  cp.spawn( "tar",['xjvf',release_filename],{stdio:'inherit'});
-});

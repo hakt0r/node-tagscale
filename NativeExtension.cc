@@ -1,19 +1,12 @@
+
 #include "functions.h"
 
-using v8::FunctionTemplate;
+Napi::Object init_all(Napi::Env env, Napi::Object exports) {
+  tagscale_init();
+  Tools::Init(env,exports);
+  XScale::Init(env,exports);
+  XIndex::Init(env,exports);
+  XCursor::Init(env,exports);
+  return exports; }
 
-void InitAll(v8::Local<v8::Object> exports) {
-
-  Nan::Set(exports, Nan::New("flushAll").ToLocalChecked(),
-    Nan::GetFunction(Nan::New<FunctionTemplate>(upb_flushAll)).ToLocalChecked());
-
-  Nan::Set(exports, Nan::New("closeAll").ToLocalChecked(),
-    Nan::GetFunction(Nan::New<FunctionTemplate>(upb_closeAll)).ToLocalChecked());
-
-  XScale::Init(exports);
-  XIndex::Init(exports);
-  XCursor::Init(exports);
-
-  tagscale_init(); }
-
-NODE_MODULE(NativeExtension, InitAll)
+NODE_API_MODULE(NativeExtension,init_all)
