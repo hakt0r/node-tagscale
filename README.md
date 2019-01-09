@@ -14,7 +14,14 @@ That being said; I use this in [nuu](https://github.com/hakt0r/nuu/) and various
 ## Installing
 
 ``` console
-foo@bar:~$ npm i --save git+https://github.com/hakt0r/node-tagscale
+# Will try prebuild, fallback to build
+foo@bar:~app$ npm i --save git+https://github.com/hakt0r/node-tagscale
+```
+
+## Installing from source
+``` console
+# Will remove sources after build
+foo@bar:~app$ FROM_SOURCE=yes npm i --save git+https://github.com/hakt0r/node-tagscale
 ```
 
 ## JavaScript Example
@@ -117,26 +124,24 @@ class XCursor
   last:->  return Boolean
 ```
 
-## Building
+## Manual Building
 
-To compile the extension for the first time, run:
-
+### First get node-tagscale
 ``` console
-# first get node-tagscale
-foo@bar:~$ git clone https://github.com/hakt0r/node-tagscale --depth=1
-foo@bar:~$ cd node-tagscale
-
-# Keep upscaledb after building - (saves alot of time ;)
-foo@bar:~/node-tagscale$ touch KEEP_FILES
-
-# Install from source only
-foo@bar:~/node-tagscale$ FROM_SOURCE=yes npm i
-
-# Try installing from repo first, then from source
-foo@bar:~/node-tagscale$ npm i
+foo@bar:~app$ cd node_modules
+foo@bar:~a/node_modules$ git clone https://github.com/hakt0r/node-tagscale --depth=1
+foo@bar:~a/node_modules$ cd node-tagscale
 ```
 
-All subsequent builds *only* need `npm run build`
+### Install from source, keep upscaledb and co.
+``` console
+foo@bar:~an/node-tagscale$ KEEP_FILES=yes npm i
+```
+
+### All subsequent builds *only* need
+``` console
+foo@bar:~an/node-tagscale$ npm run build
+```
 
 ## Dependencies (for Debian)
 
@@ -156,7 +161,7 @@ foo@bar:~$ sudo apt install ccache dietlibc libdb-dev protobuf-compiler libproto
 A very basic test suite is included. Feel free to have a glance.
 
 ``` console
-foo@bar:~/node-tagscale$ npm run test
+foo@bar:~an/node-tagscale$ npm run test
   building [...]
   ts.XScale
     ✓ open database
@@ -169,7 +174,7 @@ tag**scale**
 
   nodeJS key-value-store with secondary indices (tags) based on upscaledb
 
-  Copyright &copy; 2016-2018 Sebastian Glaser
+  Copyright &copy; 2016-2019 Sebastian Glaser
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by

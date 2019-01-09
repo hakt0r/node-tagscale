@@ -1,6 +1,6 @@
 /*
 
-  * c) 2016 Sebastian Glaser <anx@ulzq.de>
+  * c) 2016-2019 Sebastian Glaser <anx@ulzq.de>
 
   This file is part of tagscale.
 
@@ -29,6 +29,12 @@ exports.BOOL         = 4
 exports.DATE         = 8
 exports.STRING       = 16
 exports.STRING_ARRAY = 32
+
+exports.XScale.create = function(path){
+  const fs = require('fs');
+  if ( fs.existsSync(path) ) fs.unlinkSync(path);
+  return new exports.XScale(path);
+}
 
 exports.TagScale = class TagScale extends exports.XScale {
   constructor(path){

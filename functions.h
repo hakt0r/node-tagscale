@@ -1,6 +1,6 @@
 /*
 
-  * c) 2016 Sebastian Glaser <anx@ulzq.de>
+  * c) 2016-2019 Sebastian Glaser <anx@ulzq.de>
 
   This file is part of tagscale.
 
@@ -19,19 +19,21 @@
 
 */
 
-#ifndef TAGSCALE_GRAB_H
-#define TAGSCALE_GRAB_H
+#ifndef XSCALE_H
+#define XSCALE_H
 
-#include <nan.h>
-#include <node.h>
-#include <stdio.h>
+// #include <uv.h>
+// #include <stdio.h>
+// #include <time.h>
+#include <napi.h>
 #include <unistd.h>
-#include <time.h>
+#include <string.h>
+#include <sys/stat.h>
 #include <ups/upscaledb.h>
 
-using namespace std;
-using namespace v8;
-using namespace Nan;
+#define DBNAME_KEYS 1
+#define DBNAME_UID  2
+#define DBNAME_MORE 3
 
 #define XTYPE_XSCALE        1
 #define XTYPE_KEYVAL        2
@@ -40,126 +42,116 @@ using namespace Nan;
 #define XTYPE_STRING        16
 #define XTYPE_STRING_ARRAY  32
 
-typedef class XScale XScale;
-typedef class XIndex XIndex;
-typedef class XCursor XCursor;
+typedef class XScale  xscale;
+typedef class XTable  xtable;
+typedef class XIndex  xindex;
+typedef class XCursor xcursor;
 
-static const int TABLE_MAX = 1024;
-static XScale *TABLE[TABLE_MAX];
-inline int ALLOC_TABLE_ID(XScale* table){
-  for (int i = 0; i < TABLE_MAX; i++ ) if ( TABLE[i] == NULL )
-    { TABLE[i] = table; return i; };
-  return -1; }
+static const int     TABLE_MAX = 1024;
+static xscale* TABLE[TABLE_MAX];
 
-class Json {
-  public:
-    static void Init();
-    static inline const char*  stringify (Local<Value> value, uint32_t *valLen);
-    static inline Local<Value> parse     (const char* data);
-  private:
-    static Nan::Persistent<Object>   _JSON_;
-    static Nan::Persistent<Function> _STRINGIFY_; };
+inline int  ALLOC_TABLE_ID(xscale* table);
+inline void debug_flags       (uint32_t flags);
+inline void tagscale_flushAll (void);
+inline void tagscale_closeAll (void);
+       void tagscale_init     (void);
 
-class XBase : public Nan::ObjectWrap {
+class Tools {
+public:
+  static void Init(Napi::Env env, Napi::Object exports);
+  static inline const char*  stringify (Napi::Env env, Napi::Value value, uint32_t *valLen);
+  static inline std::string  stringify (Napi::Env env, Napi::Value value);
+  static inline Napi::Value  parse     (Napi::Env env, const char* data);
+  static Napi::FunctionReference Parse;
+  static Napi::FunctionReference Stringify;
+  static Napi::FunctionReference Log; };
+
+class XBase {
 public:
   uint32_t queryFlags;
   ups_db_t *keys;
   ups_db_t *data; };
 
+class XCursor : public Napi::ObjectWrap<XCursor>, public XBase {
+public:
+  static Napi::FunctionReference  constructor;
+  static Napi::Object        Init (Napi::Env env, Napi::Object exports);
+                          XCursor (const Napi::CallbackInfo& info);
+                         ~XCursor ();
+  inline bool                move (const Napi::CallbackInfo& info, uint32_t flags);
+  inline void               close (void);
+                            char* key;
+                            char* current_key;
+                              int length;
+private:
+  Napi::Value                 New (const Napi::CallbackInfo& info);
+  Napi::Value               Close (const Napi::CallbackInfo& info);
+  Napi::Value                Next (const Napi::CallbackInfo& info);
+  Napi::Value                Prev (const Napi::CallbackInfo& info);
+  Napi::Value               First (const Napi::CallbackInfo& info);
+  Napi::Value                Last (const Napi::CallbackInfo& info);
+  inline void          invalidate (const Napi::CallbackInfo& info);
+                          xtable* parent;
+                    ups_cursor_t* cur;
+                         uint32_t recordId;
+                         uint32_t firstRecordId;
+                             bool open = false; };
+
 class XTable : public XBase {
 public:
   uint32_t indexFlags;
-  static NAN_METHOD(Find);
-  static NAN_METHOD(Each); };
+  Napi::Value Find (const Napi::CallbackInfo& info);
+  Napi::Value Each (const Napi::CallbackInfo& info); };
 
-class XScale : public XTable {
- public:
-  ups_env_t *env;
-  int indexCount = 0;
-  static void Init(v8::Local<v8::Object> exports);
-  static Nan::Persistent<v8::Function> constructor;
-  inline void close(void);
- private:
-  explicit XScale(const char* path);
-  ~XScale();
-  static NAN_METHOD(New);
-  static NAN_METHOD(Close);
-  static NAN_METHOD(Set);
-  static NAN_METHOD(Get);
-  static NAN_METHOD(Del);
-  static NAN_METHOD(DefineIndex);
-  XIndex *index[TABLE_MAX];
-  char *path = NULL;
-  bool open = false;
-  int id;};
+class XScale : public Napi::ObjectWrap<XScale>, public XTable {
+public:
+  static Napi::Object       Init (Napi::Env env, Napi::Object exports);
+                          XScale (const Napi::CallbackInfo& info);
+                         ~XScale ();
+  static Napi::Value    flushAll (const Napi::CallbackInfo& info);
+  static Napi::Value    closeAll (const Napi::CallbackInfo& info);
+  inline void              close (void);
+                      ups_env_t* env;
+                             int indexCount = 0;
+private:
+  static Napi::FunctionReference constructor;
+  Napi::Value              Close (const Napi::CallbackInfo& info);
+  Napi::Value                Set (const Napi::CallbackInfo& info);
+  Napi::Value                Get (const Napi::CallbackInfo& info);
+  Napi::Value                Del (const Napi::CallbackInfo& info);
+  Napi::Value        DefineIndex (const Napi::CallbackInfo& info);
+                         xindex* index[TABLE_MAX];
+                           char* path = NULL;
+                            bool open = false;
+                             int id; };
 
-class XIndex : public XTable {
- public:
-  static void Init(v8::Local<v8::Object> exports);
-  static Nan::Persistent<v8::Function> constructor;
-  inline void set(uint32_t recordId, Local<Object> Subject);
-  inline void setBool(uint32_t recordId, Local<Object> Subject, Local<String> IndexKey);
-  inline void setDate(uint32_t recordId, Local<Object> Subject, Local<String> IndexKey);
-  inline void setString(uint32_t recordId, Local<Object> Subject, Local<String> IndexKey);
-  inline void setStringArray(uint32_t recordId, Local<Object> Subject, Local<String> IndexKey);
-  inline void del(uint32_t recordId, Local<Object> Subject);
-  inline void delBool(ups_cursor_t *cursor, uint32_t recordId, Local<Object> Subject, Local<String> IndexKey);
-  inline void delDate(ups_cursor_t *cursor, uint32_t recordId, Local<Object> Subject, Local<String> IndexKey);
-  inline void delString(ups_cursor_t *cursor, uint32_t recordId, Local<Object> Subject, Local<String> IndexKey);
-  inline void delStringArray(ups_cursor_t *cursor, uint32_t recordId, Local<Object> Subject, Local<String> IndexKey);
-  inline void innerDelString(ups_cursor_t *cursor, uint32_t recordId, const char* value);
-  XScale *parent;
- private:
-  explicit XIndex(XScale *parent, const char* name, uint32_t flags, Local<Object> This);
-  ~XIndex();
-  inline void close(void);
-  static NAN_METHOD(New);
-  static NAN_METHOD(Close);
-  static NAN_METHOD(Set);
-  static NAN_METHOD(Get);
-  static NAN_METHOD(Del);
-  char *name = NULL;
-  bool open = false; };
-
-class XCursor : public XBase {
- public:
-  static void Init(v8::Local<v8::Object> exports);
-  static Nan::Persistent<v8::Function> constructor;
-  static inline bool move(Local<Object> That, const Nan::FunctionCallbackInfo<v8::Value>& info, uint32_t flags);
-  inline void close(void);
-  char *key; int length;
-  char *current_key;
- private:
-  explicit XCursor(XTable *parent, const char* key, uint32_t extra_flags);
-  ~XCursor();
-  static NAN_METHOD(New);
-  static NAN_METHOD(Close);
-  static NAN_METHOD(Next);
-  static NAN_METHOD(Prev);
-  static NAN_METHOD(First);
-  static NAN_METHOD(Last);
-  inline void invalidate(const Nan::FunctionCallbackInfo<v8::Value>& info, Local<Object> This);
-  XTable *parent;
-  Local<Object> current;
-  ups_cursor_t *cur;
-  bool open = false; };
-
-void tagscale_init(void);
-void tagscale_flushAll(void);
-void tagscale_closeAll(void);
-
-NAN_METHOD(upb_flushAll);
-NAN_METHOD(upb_closeAll);
-
-static inline void debug_flags(uint32_t flags){
-  if ( flags & UPS_CURSOR_FIRST ) printf("UPS_CURSOR_FIRST\n");
-  if ( flags & UPS_CURSOR_LAST ) printf("UPS_CURSOR_LAST\n");
-  if ( flags & UPS_CURSOR_NEXT ) printf("UPS_CURSOR_NEXT\n");
-  if ( flags & UPS_CURSOR_PREVIOUS ) printf("UPS_CURSOR_PREVIOUS\n");
-  if ( flags & UPS_SKIP_DUPLICATES ) printf("UPS_SKIP_DUPLICATES\n");
-  if ( flags & UPS_ONLY_DUPLICATES ) printf("UPS_ONLY_DUPLICATES\n");
-  if ( flags & UPS_FIND_EQ_MATCH ) printf("UPS_FIND_EQ_MATCH\n");
-  if ( flags & UPS_FIND_LT_MATCH ) printf("UPS_FIND_LT_MATCH\n");
-  if ( flags & UPS_FIND_GT_MATCH ) printf("UPS_FIND_GT_MATCH\n"); }
+class XIndex : public Napi::ObjectWrap<XIndex>, public XTable {
+public:
+  static Napi::FunctionReference constructor;
+  static Napi::Object        Init (Napi::Env env, Napi::Object exports);
+  static Napi::Object NewInstance (Napi::Env env, xscale* parent, const char* name, uint32_t flags);
+                           XIndex (const Napi::CallbackInfo& info);
+  void                      setup (xscale* parent, const char* name, uint32_t flags);
+                          ~XIndex ();
+  inline void                 set (Napi::Env env, uint32_t recordId, Napi::Object Subject);
+  inline void             setBool (Napi::Env env, uint32_t recordId, Napi::Object Subject, Napi::String IndexKey);
+  inline void             setDate (Napi::Env env, uint32_t recordId, Napi::Object Subject, Napi::String IndexKey);
+  inline void           setString (Napi::Env env, uint32_t recordId, Napi::Object Subject, Napi::String IndexKey);
+  inline void      setStringArray (Napi::Env env, uint32_t recordId, Napi::Object Subject, Napi::String IndexKey);
+  inline void                 del (Napi::Env env, uint32_t recordId, Napi::Object Subject);
+  inline void             delBool (ups_cursor_t *cursor, uint32_t recordId, Napi::Object Subject, Napi::String IndexKey);
+  inline void             delDate (ups_cursor_t *cursor, uint32_t recordId, Napi::Object Subject, Napi::String IndexKey);
+  inline void           delString (Napi::Env env, ups_cursor_t *cursor, uint32_t recordId, Napi::Object Subject, Napi::String IndexKey);
+  inline void      delStringArray (Napi::Env env, ups_cursor_t *cursor, uint32_t recordId, Napi::Object Subject, Napi::String IndexKey);
+  inline void      innerDelString (ups_cursor_t *cursor, uint32_t recordId, const char* value);
+                          xscale* parent;
+private:
+  Napi::Value                 Get (const Napi::CallbackInfo& info);
+  Napi::Value                 Set (const Napi::CallbackInfo& info);
+  Napi::Value                 Del (const Napi::CallbackInfo& info);
+  Napi::Value               Close (const Napi::CallbackInfo& info);
+  inline void               close (void);
+                            char* name = NULL;
+                             bool open = false; };
 
 #endif
