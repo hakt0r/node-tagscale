@@ -124,7 +124,7 @@ XScale::XScale(const Napi::CallbackInfo& info) : Napi::ObjectWrap<XScale>(info) 
   Napi::HandleScope scope(env);
   if ( length != 1        ) { Napi::TypeError::New(env, "Reqiures one argument of String").ThrowAsJavaScriptException(); }
   if ( !info[0].IsString()) { Napi::TypeError::New(env, "String expected").ThrowAsJavaScriptException(); }
-  const char* path = info[0].As<Napi::String>().Utf8Value().c_str();
+  this->path = strdup(info[0].As<Napi::String>().Utf8Value().c_str());
   ups_parameter_t uid_params[] = {
     {UPS_PARAM_KEY_TYPE, UPS_TYPE_UINT32}, {0,0} };
   ups_parameter_t key_params[] = {
@@ -134,19 +134,18 @@ XScale::XScale(const Napi::CallbackInfo& info) : Napi::ObjectWrap<XScale>(info) 
   uint32_t flags = UPS_AUTO_RECOVERY;
   int result = UPS_FILE_NOT_FOUND;
   struct stat buffer;
-  if ( 0 == stat(path,&buffer) ){
-                                  result =                      ups_env_open   (&this->env, path, flags, NULL ); }
-  if      ( UPS_FILE_NOT_FOUND == result ) { if( UPS_SUCCESS != ups_env_create (&this->env, path, flags, 0664, 0 )) return; }
-  else if ( UPS_NEED_RECOVERY  == result ) { if( UPS_SUCCESS != ups_env_open   (&this->env, path, flags, 0       )) return; }
-  else if ( UPS_SUCCESS != result ) return;
+  if ( 0 == stat(this->path,&buffer) ){
+                                  result =                      ups_env_open   (&this->env, this->path, flags, NULL ); }
+  if      ( UPS_FILE_NOT_FOUND == result ) { if( UPS_SUCCESS != ups_env_create (&this->env, this->path, flags, 0664, 0 )) { free(this->path); return; } }
+  else if ( UPS_NEED_RECOVERY  == result ) { if( UPS_SUCCESS != ups_env_open   (&this->env, this->path, flags, 0       )) { free(this->path); return; } }
+  else if ( UPS_SUCCESS != result ) { free(this->path); return; }
   if( UPS_SUCCESS != ups_env_open_db   ( this->env, &this->keys, DBNAME_KEYS, 0,0 ))
-  if( UPS_SUCCESS != ups_env_create_db ( this->env, &this->keys, DBNAME_KEYS, 0, &key_params[0]) ) return;
+  if( UPS_SUCCESS != ups_env_create_db ( this->env, &this->keys, DBNAME_KEYS, 0, &key_params[0]) ) { free(this->path); return; }
   if( UPS_SUCCESS != ups_env_open_db   ( this->env, &this->data, DBNAME_UID,  0,0))
-  if( UPS_SUCCESS != ups_env_create_db ( this->env, &this->data, DBNAME_UID,  UPS_RECORD_NUMBER32, &uid_params[0]) ) return;
+  if( UPS_SUCCESS != ups_env_create_db ( this->env, &this->data, DBNAME_UID,  UPS_RECORD_NUMBER32, &uid_params[0]) ) { free(this->path); return; }
   this->id = ALLOC_TABLE_ID(this);
-  this->path = strndup(path,strlen(path));
   this->open = true;
-  info.This().As<Napi::Object>().Set("path",Napi::Value::From(env,path));
+  info.This().As<Napi::Object>().Set("path",Napi::Value::From(env,this->path));
   //- printf("keys: %llx\n",keys);
 }
 
