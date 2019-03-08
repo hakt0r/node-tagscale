@@ -3,7 +3,8 @@
   "scripts": {
     "test": "mocha",
     "build": "node-gyp build && prebuild --all -r napi --strip",
-    "install": "node install.js"
+    "install": "node install.js",
+    "fresh":"npm i --no-save node-addon-api node-gyp prebuild mocha; npm run build"
   },
   "devDependencies": {
     "prebuild-install": "^5.2.2"
