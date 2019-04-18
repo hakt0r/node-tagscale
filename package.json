@@ -21,7 +21,7 @@
   "gypfile": true,
   "name": "tagscale",
   "description": "nodeJS key-value-store with secondary indices (tags) based on upscaledb",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "directories": {
     "test": "test"
   },

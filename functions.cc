@@ -304,12 +304,14 @@ Napi::Value XTable::Each(const Napi::CallbackInfo& info){
   // Callback Loop
   Napi::Function func = info[1].As<Napi::Function>();
   XCursor*          c = Napi::ObjectWrap<XCursor>::Unwrap(cursor);
+  Napi::Function next = cursor.Get("next").As<Napi::Function>();
   more:
-  Napi::Value key     = cursor.Get("key");
   Napi::Value current = cursor.Get("current");
-  Napi::Value result  = func.Call(env.Global(),{cursor,current,key});
-  if ( ! result.IsEmpty() ) { if ( ! result.As<Napi::Boolean>().Value() ) { goto cleanup; }}
-  if ( c->move(info, UPS_CURSOR_NEXT ) ) goto more;
+  Napi::Value key = cursor.Get("key");
+  if ( current.IsUndefined() ){ goto cleanup; }
+  func.Call(env.Global(),{cursor,current,key});
+  next.Call(cursor,{});
+  goto more;
   cleanup:
   c->close();
   return Napi::Value::From(env,true);
@@ -598,9 +600,11 @@ inline bool XCursor::move(const Napi::CallbackInfo& info, uint32_t flags){
   again:
   if ( UPS_SUCCESS != (s= ups_cursor_move (this->cur, &_key, &_val, flags | this->queryFlags ))){
     //- printf("move::end\n");
+    This.Set("key",env.Undefined());
     This.Set("current",env.Undefined());
     return false; }
   if ( flags & UPS_CURSOR_PREVIOUS ) if ( recordId == firstRecordId ){
+    This.Set("key",env.Undefined());
     This.Set("current",env.Undefined());
     return false; }
   this->current_key = (char*) realloc( (void*)this->current_key, _key.size - 1 );

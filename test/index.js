@@ -110,7 +110,7 @@ describe('ts.XScale', function() {
     stress_diff(t,COUNT); done();
   });
   it('open a cursor', function() {
-    assert.equal    ( tags.set("test",obj1)  > -1, true      ); // Insert an object we want to find.
+    assert.equal    ( tags.set("test", obj1) > -1, true      ); // Insert an object we want to find.
     assert.equal    ( tags.set("test1",obj2) > -1, true      ); // Insert another object we want to find.
     assert.notEqual ( c = tags.find('test'),       false     ); // Moment of truth
     assert.notEqual ( c.current,                   undefined ); // Should be defined, i mean - we just inseted it ;)
@@ -121,12 +121,16 @@ describe('ts.XScale', function() {
   });
   var recsRead = 0;
   var oneRecRead = false;
-  it('open an iterator (.each)', function() {
+  var recOneRead = false;
+  var recTwoRead = false;
+  it('open an iterator for all recs: @each(null)', function() {
     var result = false;
-    result = tags.each(null, function(key,value,iterator){
-      assert.notEqual ( key, undefined );
+    result = tags.each(null, function(cursor,value,key){
+      if (key == 'test')  recOneRead = true;
+      if (key == 'test1') recTwoRead = true;
+      assert.notEqual ( cursor, undefined );
       assert.notEqual ( value, undefined );
-      assert.notEqual ( iterator, undefined );
+      assert.notEqual ( key, undefined );
       oneRecRead = true; recsRead++;
       return true;
     });
@@ -137,6 +141,12 @@ describe('ts.XScale', function() {
   });
   it('read more than one record', function() {
     assert.equal ( recsRead > 1, true );
+  });
+  it('read all records[0]', function() {
+    assert.notEqual ( recOneRead, false );
+  });
+  it('read all records[1]', function() {
+    assert.notEqual ( recTwoRead, false );
   });
   it('close database', function() {
    assert.equal     ( tags.close(),                true      ); // Close the database and be done with it.
