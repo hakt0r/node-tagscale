@@ -173,11 +173,12 @@ Napi::Value XScale::Set(const Napi::CallbackInfo& info) {
     printf("XScale::Set Error: invalid arguments count=%i firstIsString=%i.\n",(int)info.Length(),(int)info[0].IsString() );
     return Napi::Value::From(env,false); }
   uint32_t recordId; ups_key_t _key = {0,0,0,0}; ups_record_t _val = {0,0,0};
-  std::string key = info[0].As<Napi::String>().Utf8Value();
+  char *key = strdup(info[0].As<Napi::String>().Utf8Value().c_str());
+  uint32_t keyLen = strlen(key);
   std::string val = Tools::stringify(env,info[1]);
   uint32_t valLen = val.size();
   // CHECK_EXISTS (key->uid)
-  _key.data = (void*)key.c_str();
+  _key.data = (void*)key;
   _key.size = (uint32_t) valLen + 1;
   _val.data = &recordId;
   _val.size = sizeof(recordId);
@@ -187,7 +188,7 @@ Napi::Value XScale::Set(const Napi::CallbackInfo& info) {
     _key.size = sizeof(recordId);
     if ( UPS_SUCCESS != ups_db_find(this->data, 0, &_key, &_val, 0 )){
       printf("XScale::Set Error: Key exists but has no data.\n");
-      return Napi::Value::From(env,false); }
+      free(key); return Napi::Value::From(env,false); }
     Napi::Object obj = Tools::parse(env,(char *)_val.data).As<Napi::Object>();
     // update this->data (data)
     _key.data = &recordId;
@@ -196,7 +197,7 @@ Napi::Value XScale::Set(const Napi::CallbackInfo& info) {
     _val.size = (uint32_t) valLen + 1;
     if ( UPS_SUCCESS != ups_db_insert(this->data, 0, &_key, &_val, UPS_OVERWRITE )){
       printf("XScale::Set Error: Key exists but cannot change data.\n");
-      return Napi::Value::From(env,false); }
+      free(key); return Napi::Value::From(env,false); }
     for(int i=0; i<this->indexCount; i++){
       this->index[i]->del(env, recordId, obj ); }
   } else {
@@ -207,53 +208,53 @@ Napi::Value XScale::Set(const Napi::CallbackInfo& info) {
     _val.size = (uint32_t) valLen + 1;
     if ( UPS_SUCCESS != ups_db_insert(this->data, 0, &_key, &_val, 0 )){
       printf("XScale::Set Error: Can't insert data.\n");
-      return Napi::Value::From(env,false); }
+      free(key); return Napi::Value::From(env,false); }
     // this->keys (key->uid)
     _key.flags = 0;
-    _key.data = (void*)key.c_str();
-    _key.size = (uint32_t) key.size() + 1;
+    _key.data = (void*)key;
+    _key.size = (uint32_t) keyLen + 1;
     _val.data = &recordId;
     _val.size = sizeof(recordId);
     if ( UPS_SUCCESS != ups_db_insert(this->keys, 0, &_key, &_val, 0 )){
       printf("XScale::Set Error: Can't insert key.\n");
-      return Napi::Value::From(env,false); }}
+      free(key); return Napi::Value::From(env,false); }}
   for(int i=0; i<this->indexCount; i++){
     this->index[i]->set(env,recordId, info[1].As<Napi::Object>()); }
-  return Napi::Number::New(env,recordId); }
+  free(key); return Napi::Number::New(env,recordId); }
 
 Napi::Value XScale::Get(const Napi::CallbackInfo& info) {
   Napi::Env env = info.Env();
   if ( !this->open ) { return Napi::Value::From(env,false); }
   if ( info.Length() != 1 ){ return Napi::Value::From(env,false); }
   ups_status_t STATUS; uint32_t recordId; ups_key_t _key = {0,0,0,0}; ups_record_t _val = {0,0,0};
-  const char *key = info[0].As<Napi::String>().Utf8Value().c_str();
+  char *key = strdup(info[0].As<Napi::String>().Utf8Value().c_str());
   _key.data = (void*)key; _key.size = (uint32_t) strlen(key) + 1;
   if ( UPS_SUCCESS != ( STATUS = ups_db_find(this->keys, 0, &_key, &_val, 0 ))){
     // printf("XScale get %s: %s\n",key,ups_strerror(STATUS));
-    return Napi::Value::From(env,false); }
+    free(key); return Napi::Value::From(env,false); }
   recordId = *(uint32_t *) _val.data; _key.data = &recordId; _key.size = sizeof(recordId);
   if ( UPS_SUCCESS != ( STATUS = ups_db_find(this->data, 0, &_key, &_val, 0 ))){
     // printf("XScale get-data %s[%i]: %s\n",key,recordId,ups_strerror(STATUS));
-    return Napi::Value::From(env,false); }
+    free(key); return Napi::Value::From(env,false); }
   Napi::Value value = Tools::parse(env,(char *)_val.data);
-  return value; }
+  free(key); return value; }
 
 Napi::Value XScale::Del(const Napi::CallbackInfo& info) {
   Napi::Env env = info.Env();
   if ( !this->open ) { return Napi::Value::From(env,false); }
   if ( info.Length() != 1 ){ return Napi::Value::From(env,false); }
   uint32_t recordId; ups_key_t _key = {0,0,0,0}; ups_record_t _val = {0,0,0};
-  const char *key = info[0].As<Napi::String>().Utf8Value().c_str();
+  char *key = strdup(info[0].As<Napi::String>().Utf8Value().c_str());
   _key.data = (void*)key; _key.size = (uint32_t)strlen(key) + 1;
-  if ( UPS_SUCCESS !=  ups_db_find(this->keys, 0, &_key, &_val, 0 )){ return Napi::Value::From(env,false); }
-  if ( UPS_SUCCESS !=  ups_db_erase(this->keys, 0, &_key, 0 )){ return Napi::Value::From(env,false); }
+  if ( UPS_SUCCESS !=  ups_db_find(this->keys, 0, &_key, &_val, 0 )){ free(key); return Napi::Value::From(env,false); }
+  if ( UPS_SUCCESS !=  ups_db_erase(this->keys, 0, &_key, 0 )){ free(key); return Napi::Value::From(env,false); }
   recordId = *(uint32_t *) _val.data; _key.data = &recordId; _key.size = sizeof(recordId);
-  if ( UPS_SUCCESS !=  ups_db_find(this->data, 0, &_key, &_val, 0 )){ return Napi::Value::From(env,false); }
+  if ( UPS_SUCCESS !=  ups_db_find(this->data, 0, &_key, &_val, 0 )){ free(key); return Napi::Value::From(env,false); }
   Napi::Object obj = Tools::parse(env,(char *)_val.data).As<Napi::Object>();
   for(int i=0; i<this->indexCount; i++){ this->index[i]->del(env, recordId, obj ); }
   _key.data = &recordId; _key.size = sizeof(recordId);
-  if ( UPS_SUCCESS !=  ups_db_erase(this->data, 0, &_key, 0 )){ return Napi::Value::From(env,false); }
-  return Napi::Value::From(env,true); }
+  if ( UPS_SUCCESS !=  ups_db_erase(this->data, 0, &_key, 0 )){ free(key); return Napi::Value::From(env,false); }
+  free(key); return Napi::Value::From(env,true); }
 
 Napi::Value XScale::DefineIndex(const Napi::CallbackInfo& info) {
   Napi::Env env = info.Env();
@@ -518,7 +519,7 @@ XCursor::XCursor (const Napi::CallbackInfo& info) : Napi::ObjectWrap<XCursor>(in
   this->key         = NULL;
   if ( 4 == info[1].Type() ) {
     name = info[1].As<Napi::String>().Utf8Value();
-    this->key = (char*)name.c_str(); }
+    this->key = strdup(name.c_str()); }
   if ( UPS_SUCCESS != (s= ups_cursor_create(&this->cur, this->keys, 0, 0 ))){
     //- printf("!created[%s]: [bool]\n", ups_strerror(s));
     return; }
@@ -538,13 +539,13 @@ XCursor::XCursor (const Napi::CallbackInfo& info) : Napi::ObjectWrap<XCursor>(in
     this->queryFlags = 0;
     if ( UPS_SUCCESS != ( s=ups_cursor_move(this->cur, &_key, &_val, UPS_CURSOR_NEXT ))){
       //- printf("!moved[%s]: [bool]\n", ups_strerror(s));
-      return; }
+      if(this->key){free(this->key);this->key=NULL;};return; }
     this->key         = strndup( (char*)_key.data, _key.size );
     this->current_key = strndup( (char*)_key.data, _key.size );
   } else {
     this->length = strlen(key); this->key = strndup(key,this->length);
     _key.data = (void*)this->key; _key.size = this->length + 1;
-    if ( UPS_SUCCESS != ( s=ups_cursor_find(this->cur, &_key, &_val, 0 ))){ return; }
+    if ( UPS_SUCCESS != ( s=ups_cursor_find(this->cur, &_key, &_val, 0 ))){ if(this->key){free(this->key);this->key=NULL;};return; }
     this->current_key = strndup( (char*)_key.data, _key.size - 1 ); }
   // Get Data
   recordId = *(uint32_t*) _val.data;
@@ -552,13 +553,14 @@ XCursor::XCursor (const Napi::CallbackInfo& info) : Napi::ObjectWrap<XCursor>(in
   _key.size = sizeof(recordId);
   if ( UPS_SUCCESS != (s= ups_db_find(data,0, &_key, &_val, 0 ))){
     //- printf("NEW_CURSee %s\n",ups_strerror(s));
-    return; }
+    if(this->key){free(this->key);this->key=NULL;};return; }
   firstRecordId = recordId;
   This.Set("current",Tools::parse(info.Env(),(char *)_val.data).As<Napi::Object>());
   This.Set("key",Napi::Value::From(env, this->current_key));
   //- printf("c$%llx: %s\n",this,current_key);
   // Tools::Log.Call({Napi::Value::From(env,"current$$"),This.Get("current")});
-  this->open = true; }
+  this->open = true;
+  if(this->key){free(this->key);this->key=NULL;}}
 
 XCursor::~XCursor(){ this->close(); }
 
